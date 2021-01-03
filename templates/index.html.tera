@@ -1,4 +1,0 @@
-{% extends "base" %}
-{% block content %}
-    {{ "test-string" | localize(language=language) }}
-{% endblock content %}

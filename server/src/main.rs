@@ -15,16 +15,22 @@ use rocket_contrib::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct IndexContext {
+struct MarkdownContext {
     language: String,
+    markdown: String,
+    view_only: bool,
 }
 
 #[get("/")]
 fn hello(language: UserLanguage) -> Template {
     Template::render(
-        "index",
-        IndexContext {
+        "markdown",
+        MarkdownContext {
+            view_only: true,
             language: language.0,
+            markdown: String::from(
+                "# Home\n\nWelcome to the home page. This is hard-coded for now.",
+            ),
         },
     )
 }

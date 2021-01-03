@@ -1,4 +1,0 @@
-{% extends "base" %}
-{% block content %}
-    {{ "not-found" | localize(language=language) }}
-{% endblock content %}
