@@ -1,2 +1,2 @@
 [workspace]
-members = ["database", "server", "shared"]
+members = ["database", "server"]
