@@ -12,6 +12,8 @@ use std::{collections::HashMap, str::FromStr};
 use tera::Value;
 use unic_langid::{langid, LanguageIdentifier};
 
+use crate::tera_error;
+
 pub const US_ENGLISH: LanguageIdentifier = langid!("en-US");
 
 // TODO we should refactor this to using a solution that performs the pick_best_language at the time of resolving individual keys
@@ -26,10 +28,6 @@ fluent_templates::static_loader! {
 #[allow(dead_code)]
 fn unused() {
     include_dir!("../strings");
-}
-
-fn tera_error(message: &str) -> tera::Error {
-    tera::ErrorKind::Msg(message.to_owned()).into()
 }
 
 pub fn tera_localize(key: Value, args: HashMap<String, Value>) -> tera::Result<Value> {
