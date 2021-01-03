@@ -12,7 +12,10 @@ use std::{collections::HashMap, str::FromStr};
 use tera::Value;
 use unic_langid::{langid, LanguageIdentifier};
 
-use crate::tera_error;
+use crate::{
+    configuration::{ConfigurationManager, SitePrimaryLocale},
+    tera_error,
+};
 
 pub const US_ENGLISH: LanguageIdentifier = langid!("en-US");
 
@@ -83,9 +86,11 @@ impl<'a, 'r> FromRequest<'a, 'r> for UserLanguage {
     type Error = std::convert::Infallible;
 
     fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
-        // TODO configure default language
+        let default_locale = ConfigurationManager::shared()
+            .get::<SitePrimaryLocale>()
+            .unwrap();
         let best_language = pick_best_language(
-            "en-US",
+            &default_locale,
             request.headers().get_one("Accept-Language"),
             &LOCALES.locales().cloned().collect::<Vec<_>>(),
         );

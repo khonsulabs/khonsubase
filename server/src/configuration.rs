@@ -1,8 +1,4 @@
-mod site_name;
 use crate::tera_error;
-
-pub use self::site_name::SiteName;
-
 use fluent_templates::once_cell::sync::OnceCell;
 use rocket_contrib::templates::tera;
 use serde::{de::DeserializeOwned, Serialize};
@@ -10,6 +6,11 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
+
+mod site_name;
+mod site_primary_locale;
+
+pub use self::{site_name::SiteName, site_primary_locale::SitePrimaryLocale};
 
 pub trait Configuration {
     type Type: Serialize + DeserializeOwned;
