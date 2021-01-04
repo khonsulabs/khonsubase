@@ -16,28 +16,15 @@ pub fn migration() -> Migration {
         .with_down("DROP TABLE IF EXISTS accounts")
         .with_up(
             r#"
-                CREATE TABLE account_emails (
-                    account_id BIGSERIAL,
-                    email TEXT,
-                    hashed_email TEXT NOT NULL,
-                    is_primary BOOLEAN NOT NULL,
-                    CONSTRAINT account_emails_pkey PRIMARY KEY (account_id, hashed_email),
-                    CONSTRAINT account_emails_unique UNIQUE (account_id, hashed_email)
-                )
-        "#,
-        )
-        .with_down("DROP TABLE IF EXISTS account_emails")
-        .with_up(
-            r#"
-                CREATE TABLE installations (
+                CREATE TABLE sessions (
                     id UUID PRIMARY KEY,
                     account_id BIGINT NULL REFERENCES accounts(id),
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                    last_connected_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    expires_at TIMESTAMPTZ NULL
                 )
         "#,
         )
-        .with_down("DROP TABLE IF EXISTS installations")
+        .with_down("DROP TABLE IF EXISTS sessions")
         .with_up(
             r#"
                 CREATE TABLE account_agreements (

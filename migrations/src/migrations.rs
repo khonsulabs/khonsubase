@@ -8,7 +8,7 @@ pub fn migrations() -> Vec<Migration> {
 }
 
 pub async fn run_all() -> Result<(), MigrationError> {
-    let pool = pool().await;
+    let pool = pool();
 
     Migration::run_all(&pool, migrations()).await
 }

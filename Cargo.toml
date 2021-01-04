@@ -1,2 +1,2 @@
 [workspace]
-members = ["database", "server"]
+members = ["database", "server", "migrations"]

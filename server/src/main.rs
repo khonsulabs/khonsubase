@@ -4,55 +4,24 @@
 extern crate rocket;
 
 mod configuration;
-mod localization;
+mod setup;
+mod webserver;
 
-use configuration::SiteName;
-use localization::UserLanguage;
-use rocket_contrib::{
-    serve::StaticFiles,
-    templates::{tera, Template},
-};
-use serde::{Deserialize, Serialize};
+fn main() -> Result<(), anyhow::Error> {
+    dotenv::dotenv().unwrap();
 
-#[derive(Serialize, Deserialize)]
-struct MarkdownContext {
-    language: String,
-    markdown: String,
-    view_only: bool,
-}
+    let mut tokio = tokio::runtime::Runtime::new()?;
+    tokio.block_on(async {
+        database::initialize().await;
 
-#[get("/")]
-fn hello(language: UserLanguage) -> Template {
-    Template::render(
-        "markdown",
-        MarkdownContext {
-            view_only: true,
-            language: language.0,
-            markdown: String::from(
-                "# Home\n\nWelcome to the home page. This is hard-coded for now.",
-            ),
-        },
-    )
-}
+        database::migrations::run_all()
+            .await
+            .expect("error executing database migrations");
 
-fn main() {
-    rocket::ignite()
-        .attach(Template::custom(|engines| {
-            engines
-                .tera
-                .register_filter("localize", localization::tera_localize);
-            engines
-                .tera
-                .register_filter("language_code", localization::language_code);
-            engines
-                .tera
-                .register_function("site_name", configuration::tera_configuration::<SiteName>());
-        }))
-        .mount("/", routes![hello])
-        .mount("/static", StaticFiles::from("static"))
-        .launch();
-}
+        setup::run().await.expect("error executing setup");
+    });
 
-fn tera_error(message: &str) -> tera::Error {
-    tera::ErrorKind::Msg(message.to_owned()).into()
+    webserver::main();
+
+    Ok(())
 }

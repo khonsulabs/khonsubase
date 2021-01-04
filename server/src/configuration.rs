@@ -1,6 +1,4 @@
-use crate::tera_error;
 use fluent_templates::once_cell::sync::OnceCell;
-use rocket_contrib::templates::tera;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::HashMap,
@@ -46,18 +44,4 @@ impl ConfigurationManager {
             .and_then(|v| serde_json::value::from_value(v.clone()).ok())
             .unwrap_or_else(T::default)
     }
-}
-
-pub fn tera_configuration<T>() -> tera::GlobalFn
-where
-    T: Configuration,
-    T::Type: ToString,
-{
-    Box::new(move |_args| -> tera::Result<tera::Value> {
-        let manager = ConfigurationManager::shared();
-        let value = manager
-            .get::<T>()
-            .ok_or_else(|| tera_error("no value found"))?;
-        Ok(tera::Value::String(value.to_string()))
-    })
 }

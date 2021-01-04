@@ -10,14 +10,12 @@ use rocket::{
 use rocket_contrib::templates::tera;
 use std::{collections::HashMap, str::FromStr};
 use tera::Value;
-use unic_langid::{langid, LanguageIdentifier};
+use unic_langid::LanguageIdentifier;
 
 use crate::{
     configuration::{ConfigurationManager, SitePrimaryLocale},
-    tera_error,
+    webserver::tera_error,
 };
-
-pub const US_ENGLISH: LanguageIdentifier = langid!("en-US");
 
 // TODO we should refactor this to using a solution that performs the pick_best_language at the time of resolving individual keys
 fluent_templates::static_loader! {
