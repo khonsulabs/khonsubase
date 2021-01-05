@@ -1,40 +1,12 @@
 mod articles;
+mod auth;
 mod localization;
 
 use crate::configuration::{Configuration, ConfigurationManager, SiteName};
-use localization::UserLanguage;
 use rocket_contrib::{
     serve::StaticFiles,
     templates::{tera, Template},
 };
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-struct MarkdownContext {
-    language: String,
-    markdown: String,
-    view_only: bool,
-}
-
-#[get("/")]
-fn home(language: UserLanguage) -> Template {
-    markdown(String::from("home"), language).unwrap()
-}
-
-#[get("/<slug>")]
-fn markdown(slug: String, language: UserLanguage) -> Result<Template, rocket::http::Status> {
-    let article =
-        articles::find_article(&slug.to_lowercase()).ok_or(rocket::http::Status::NotFound)?;
-
-    Ok(Template::render(
-        "markdown",
-        MarkdownContext {
-            view_only: true,
-            language: language.0,
-            markdown: article.body,
-        },
-    ))
-}
 
 pub fn main() {
     rocket::ignite()
@@ -49,7 +21,8 @@ pub fn main() {
                 .tera
                 .register_function("site_name", tera_configuration::<SiteName>());
         }))
-        .mount("/", routes![markdown, home])
+        .mount("/", routes![auth::signin])
+        .mount("/", routes![articles::article_by_slug, articles::home])
         .mount("/static", StaticFiles::from("static"))
         .launch();
 }
