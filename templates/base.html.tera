@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ language | language_code }}">
+<html lang="{{ request.language | language_code }}">
     <head>
         <meta charset="utf-8"/>
         <meta content="width=device-width, initial-scale=1" name="viewport"/>
@@ -30,7 +30,7 @@
                     <div class="collapse navbar-collapse" id="navbarSupportedContent">
                         <ul class="navbar-nav me-auto">
                             <li class="nav-item active">
-                                <a class="nav-link" href="/">{{ localize(key = "home", language = language) }}</a>
+                                <a class="nav-link" href="/">{{ localize(key = "home", language = request.language) }}</a>
                             </li>
                             <form class="d-flex ms-4">
                                 <input aria-label="Search" class="form-control" placeholder="Search" type="search"/>
@@ -40,19 +40,19 @@
                             </form>
                         </ul>
                         <ul class="navbar-nav">
-                            {% if session %}
+                            {% if request.session %}
                                 <li class="nav-item">
-                                    <a class="nav-link" href="/profile">{{ session.account.username }}</a>
+                                    <a class="nav-link" href="/profile">{{ request.session.account.username }}</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="btn btn-outline-light" href="/signout">{{ localize(key = "sign-out", language = language) }}</a>
+                                    <a class="btn btn-outline-light" href="/signout?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-out", language = request.language) }}</a>
                                 </li>
                             {% else %}
                                 <li class="nav-item">
-                                    <a class="nav-link" href="/signin">{{ localize(key = "sign-in", language = language) }}</a>
+                                    <a class="nav-link" href="/signin?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-in", language = request.language) }}</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="btn btn-outline-success" href="/signup">{{ localize(key = "sign-up", language = language) }}</a>
+                                    <a class="btn btn-outline-success" href="/signup?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-up", language = request.language) }}</a>
                                 </li>
                             {% endif %}
                         </ul>

@@ -3,7 +3,7 @@ use database::schema::cms::Article;
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use super::auth::{SessionData, SessionId};
+use super::{auth::SessionId, FullPathAndQuery, RequestData};
 
 pub fn find_article(slug: &str) -> Option<Article> {
     if slug == "home" {
@@ -19,15 +19,18 @@ pub fn find_article(slug: &str) -> Option<Article> {
 
 #[derive(Serialize, Deserialize)]
 struct MarkdownContext {
-    session: Option<SessionData>,
-    language: String,
+    request: RequestData,
     markdown: String,
     view_only: bool,
 }
 
 #[get("/")]
-pub async fn home(language: UserLanguage, session: Option<SessionId>) -> Template {
-    article_by_slug(String::from("home"), language, session)
+pub async fn home(
+    language: UserLanguage,
+    session: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Template {
+    article_by_slug(String::from("home"), language, session, path)
         .await
         .unwrap()
 }
@@ -37,27 +40,23 @@ pub async fn article_by_slug(
     slug: String,
     language: UserLanguage,
     session: Option<SessionId>,
+    path: FullPathAndQuery,
 ) -> Result<Template, rocket::http::Status> {
     let article = find_article(&slug.to_lowercase()).ok_or(rocket::http::Status::NotFound)?;
-    Ok(render_article(article, language, session).await)
+    Ok(render_article(article, language, session, path).await)
 }
 
 async fn render_article(
     article: Article,
     language: UserLanguage,
     session: Option<SessionId>,
+    path: FullPathAndQuery,
 ) -> Template {
-    let session = if let Some(session_id) = session {
-        session_id.validate().await.ok()
-    } else {
-        None
-    };
     Template::render(
         "markdown",
         MarkdownContext {
-            session,
+            request: RequestData::new(language, path, session).await,
             view_only: true,
-            language: language.0,
             markdown: article.body,
         },
     )

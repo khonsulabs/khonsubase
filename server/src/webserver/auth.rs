@@ -1,6 +1,6 @@
 use crate::configuration::{ConfigurationManager, SessionMaximumDays};
 
-use super::localization::UserLanguage;
+use super::{localization::UserLanguage, FullPathAndQuery, RequestData};
 use database::{
     schema::accounts::{Account, Session},
     sqlx::{self, types::chrono::Utc},
@@ -18,16 +18,19 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 struct SignInContext {
-    language: String,
+    request: RequestData,
     error_message: Option<String>,
+    redirect_target: Option<String>,
 }
 
-#[get("/signin")]
+#[get("/signin?<origin>")]
 pub async fn signin(
     language: UserLanguage,
+    origin: Option<String>,
     session_id: Option<SessionId>,
+    path: FullPathAndQuery,
 ) -> Result<Template, Redirect> {
-    if let Some(session_id) = session_id {
+    if let Some(session_id) = &session_id {
         if session_id.validate().await.is_ok() {
             return Err(Redirect::temporary("/"));
         }
@@ -36,7 +39,8 @@ pub async fn signin(
     Ok(Template::render(
         "signin",
         SignInContext {
-            language: language.0,
+            request: RequestData::new(language, path, session_id).await,
+            redirect_target: origin,
             error_message: None,
         },
     ))
@@ -47,6 +51,7 @@ pub struct SignInForm {
     username: String,
     password: String,
     rememberme: bool,
+    redirecttarget: Option<String>,
 }
 
 async fn verify_account(
@@ -85,7 +90,11 @@ async fn verify_account(
 
             cookie.set_path("/");
             cookies.add(cookie);
-            Ok(Redirect::to("/"))
+            Ok(Redirect::to(
+                user.redirecttarget
+                    .clone()
+                    .unwrap_or_else(|| String::from("/")),
+            ))
         }
         Ok(false) => Err(SignInError::UserNotFound),
         Err(_) => Err(SignInError::InternalError),
@@ -112,6 +121,8 @@ pub async fn signin_post(
     user: Form<SignInForm>,
     language: UserLanguage,
     cookies: &CookieJar<'_>,
+    session_id: Option<SessionId>,
+    path: FullPathAndQuery,
 ) -> Result<Template, Redirect> {
     let error_message = match Account::find_by_username(&user.username, database::pool()).await {
         Ok(account) => match verify_account(&account, &user, cookies).await {
@@ -125,7 +136,8 @@ pub async fn signin_post(
     Ok(Template::render(
         "signin",
         SignInContext {
-            language: language.0,
+            request: RequestData::new(language, path, session_id).await,
+            redirect_target: user.redirecttarget.clone(),
             error_message: Some(error_message.to_string()),
         },
     ))
@@ -163,12 +175,12 @@ pub struct SessionData {
     pub account: Account,
 }
 
-#[get("/signout")]
-pub async fn signout(cookies: &CookieJar<'_>, referer: Option<Referer>) -> Redirect {
+#[get("/signout?<origin>")]
+pub async fn signout(cookies: &CookieJar<'_>, origin: Option<String>) -> Redirect {
     cookies.remove(Cookie::named("session_id"));
 
-    if let Some(referer) = referer {
-        Redirect::temporary(referer.0)
+    if let Some(origin) = origin {
+        Redirect::temporary(origin)
     } else {
         Redirect::temporary("/")
     }
