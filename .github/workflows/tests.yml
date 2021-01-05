@@ -53,8 +53,8 @@ jobs:
       - name: Deploy to base.khonsulabs.com
         if: github.ref == 'refs/heads/base.khonsulabs.com'
         run: |
-          echo $SSH_KEY > base_ssh_id
-          echo $HOST_KEY > known_hosts
+          echo "$SSH_KEY" > base_ssh_id
+          echo "$HOST_KEY" > known_hosts
           chmod 0600 base_ssh_id
           chown 0600 known_hosts
 
