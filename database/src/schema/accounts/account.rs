@@ -7,7 +7,7 @@ pub struct Account {
     pub username: String,
     pub password_hash: String,
     pub display_name: Option<String>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
 }
 
 impl Account {
@@ -17,7 +17,7 @@ impl Account {
             username,
             password_hash: Default::default(),
             display_name: None,
-            created_at: None,
+            created_at: Utc::now(),
         };
         account.set_password_hash(&password)?;
         Ok(account)
@@ -34,6 +34,10 @@ impl Account {
             Err(sqlx::Error::RowNotFound) => Ok(false),
             Err(err) => Err(err),
         }
+    }
+
+    pub async fn find_by_username<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(username: &str, executor: E) -> sqlx::Result<Account> {
+        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE username = $1", username).fetch_one(executor).await
     }
 
     pub fn set_password_hash(&mut self, new_password: &str) -> anyhow::Result<()> {
@@ -60,7 +64,7 @@ impl Account {
             .fetch_one(executor)
             .await?;
             self.id = row.id;
-            self.created_at = Some(row.created_at);
+            self.created_at = row.created_at;
         } else {
             sqlx::query!(
                 "UPDATE accounts SET username = $2, password_hash = $3, display_name = $4 WHERE id = $1", 

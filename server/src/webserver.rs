@@ -2,45 +2,59 @@ mod articles;
 mod auth;
 mod localization;
 
+use std::marker::PhantomData;
+
 use crate::configuration::{Configuration, ConfigurationManager, SiteName};
 use rocket_contrib::{
     serve::StaticFiles,
     templates::{tera, Template},
 };
 
-pub fn main() {
+pub async fn main() -> Result<(), rocket::error::Error> {
     rocket::ignite()
         .attach(Template::custom(|engines| {
             engines
                 .tera
-                .register_filter("localize", localization::tera_localize);
+                .register_function("localize", localization::Localize);
             engines
                 .tera
-                .register_filter("language_code", localization::language_code);
+                .register_filter("language_code", localization::LanguageCode);
             engines
                 .tera
-                .register_function("site_name", tera_configuration::<SiteName>());
+                .register_function("site_name", TeraConfiguration::<SiteName>::default());
         }))
-        .mount("/", routes![auth::signin])
+        .mount("/", routes![auth::signin, auth::signin_post])
         .mount("/", routes![articles::article_by_slug, articles::home])
         .mount("/static", StaticFiles::from("static"))
-        .launch();
+        .launch()
+        .await
 }
 
-fn tera_error(message: &str) -> tera::Error {
-    tera::ErrorKind::Msg(message.to_owned()).into()
+pub struct TeraConfiguration<T> {
+    _phantom: PhantomData<T>,
 }
 
-pub fn tera_configuration<T>() -> tera::GlobalFn
+impl<T> Default for TeraConfiguration<T> {
+    fn default() -> Self {
+        Self {
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> tera::Function for TeraConfiguration<T>
 where
-    T: Configuration,
+    T: Configuration + Send + Sync,
     T::Type: ToString,
 {
-    Box::new(move |_args| -> tera::Result<tera::Value> {
+    fn call(
+        &self,
+        _args: &std::collections::HashMap<String, tera::Value>,
+    ) -> tera::Result<tera::Value> {
         let manager = ConfigurationManager::shared();
         let value = manager
             .get::<T>()
-            .ok_or_else(|| tera_error("no value found"))?;
+            .ok_or_else(|| tera::Error::msg("no value found"))?;
         Ok(tera::Value::String(value.to_string()))
-    })
+    }
 }

@@ -12,10 +12,7 @@ use std::{collections::HashMap, str::FromStr};
 use tera::Value;
 use unic_langid::LanguageIdentifier;
 
-use crate::{
-    configuration::{ConfigurationManager, SitePrimaryLocale},
-    webserver::tera_error,
-};
+use crate::configuration::{ConfigurationManager, SitePrimaryLocale};
 
 // TODO we should refactor this to using a solution that performs the pick_best_language at the time of resolving individual keys
 fluent_templates::static_loader! {
@@ -31,59 +28,77 @@ fn unused() {
     include_dir!("../strings");
 }
 
-pub fn tera_localize(key: Value, args: HashMap<String, Value>) -> tera::Result<Value> {
-    let key = key
-        .as_str()
-        .ok_or_else(|| tera_error("key must be a string"))?;
+pub struct Localize;
 
-    let lang = args.get("language").expect("language parameter required");
-    let lang =
-        unic_langid::LanguageIdentifier::from_str(lang.as_str().expect("language not a string."))
-            .expect("language code not found");
+impl tera::Function for Localize {
+    fn call(
+        &self,
+        args: &std::collections::HashMap<String, tera::Value>,
+    ) -> tera::Result<tera::Value> {
+        let key = args.get("key").expect("key parameter required");
+        let key = key
+            .as_str()
+            .ok_or_else(|| tera::Error::msg("key must be a string"))?;
 
-    let mut fluent_args = HashMap::new();
-    for (name, value) in args {
-        if name == "language" {
-            continue;
+        let lang = args.get("language").expect("language parameter required");
+        let lang = unic_langid::LanguageIdentifier::from_str(
+            lang.as_str().expect("language not a string."),
+        )
+        .expect("language code not found");
+
+        let mut fluent_args = HashMap::new();
+        for (name, value) in args {
+            if name == "language" || name == "key" {
+                continue;
+            }
+
+            let value = if value.is_number() {
+                FluentValue::Number(FluentNumber::new(
+                    value.as_f64().unwrap(),
+                    Default::default(),
+                ))
+            } else {
+                FluentValue::String(std::borrow::Cow::Owned(value.as_str().unwrap().to_owned()))
+            };
+
+            fluent_args.insert(name.clone(), value);
         }
 
-        let value = if value.is_number() {
-            FluentValue::Number(FluentNumber::new(
-                value.as_f64().unwrap(),
-                Default::default(),
-            ))
-        } else {
-            FluentValue::String(std::borrow::Cow::Owned(value.as_str().unwrap().to_owned()))
-        };
-
-        fluent_args.insert(name, value);
+        Ok(Value::String(LOCALES.lookup_with_args(
+            &lang,
+            &key,
+            &fluent_args,
+        )))
     }
-
-    Ok(Value::String(LOCALES.lookup_with_args(
-        &lang,
-        &key,
-        &fluent_args,
-    )))
 }
 
-pub fn language_code(language_identifier: Value, _: HashMap<String, Value>) -> tera::Result<Value> {
-    let lang = unic_langid::LanguageIdentifier::from_str(
-        language_identifier
-            .as_str()
-            .expect("language not a string."),
-    )
-    .expect("language code not found");
+pub struct LanguageCode;
 
-    Ok(Value::from(lang.language.to_string()))
+impl tera::Filter for LanguageCode {
+    fn filter(
+        &self,
+        language_identifier: &Value,
+        _: &HashMap<String, Value>,
+    ) -> tera::Result<Value> {
+        let lang = unic_langid::LanguageIdentifier::from_str(
+            language_identifier
+                .as_str()
+                .expect("language not a string."),
+        )
+        .expect("language code not found");
+
+        Ok(Value::from(lang.language.to_string()))
+    }
 }
 
 #[derive(Debug)]
 pub struct UserLanguage(pub String);
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for UserLanguage {
     type Error = std::convert::Infallible;
 
-    fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
+    async fn from_request(request: &'a Request<'r>) -> Outcome<Self, Self::Error> {
         let default_locale = ConfigurationManager::shared()
             .get::<SitePrimaryLocale>()
             .unwrap();

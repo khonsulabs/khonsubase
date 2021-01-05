@@ -4,6 +4,7 @@
         .signin-form {
             max-width: 330px;
             margin: auto;
+            align-items: center;
         }
         .signin-form .form-control {
             position: relative;
@@ -32,18 +33,24 @@
 {% endblock extrahead %}
 {% block content %}
     <div class="container-fluid signin-form">
-        <form>
-            <h1 class="h3 mb-3 fw-normal">{{ "sign-in-prompt" | localize(language = language) }}</h1>
-            <label class="visually-hidden" for="username">{{ "username" | localize(language = language) }}</label>
-            <input autofocus class="form-control" id="username" placeholder="{{ "username" | localize(language = language) }}" required type="text"/>
-            <label class="visually-hidden" for="password">{{ "password" | localize(language = language) }}</label>
-            <input class="form-control" id="password" placeholder="{{ "password" | localize(language = language) }}" required type="password"/>
+        <form accept-charset="utf-8" action="/signin" method="POST">
+            <h1 class="h3 mb-3 fw-normal">{{ localize(key = "sign-in-prompt", language = language) }}</h1>
+            {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ localize(key = error_message, language = language) }}
+                </div>
+            {% endif %}
+            <label class="visually-hidden" for="username">{{ localize(key = "username", language = language) }}</label>
+            <input autofocus class="form-control" id="username" name="username" placeholder="{{ localize(key = "username", language = language) }}" required type="text"/>
+            <label class="visually-hidden" for="password">{{ localize(key = "password", language = language) }}</label>
+            <input class="form-control" id="password" name="password" placeholder="{{ localize(key = "password", language = language) }}" required type="password"/>
             <div class="checkbox mb-3">
                 <label>
-                    <input id="rememberme" type="checkbox" value="remember-me"/> {{ "remember-me" | localize(language = language) }}
+                    <input id="rememberme" name="rememberme" type="checkbox" value="remember-me"/>
+                    {{ localize(key = "remember-me", language = language) }}
                 </label>
             </div>
-            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ "sign-in" | localize(language = language) }}</button>
+            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ localize(key = "sign-in", language = language) }}</button>
         </form>
     </div>
 {% endblock content %}

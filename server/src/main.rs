@@ -7,21 +7,19 @@ mod configuration;
 mod setup;
 mod webserver;
 
-fn main() -> Result<(), anyhow::Error> {
+#[rocket::main]
+async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().unwrap();
 
-    let mut tokio = tokio::runtime::Runtime::new()?;
-    tokio.block_on(async {
-        database::initialize().await;
+    database::initialize().await;
 
-        database::migrations::run_all()
-            .await
-            .expect("error executing database migrations");
+    database::migrations::run_all()
+        .await
+        .expect("error executing database migrations");
 
-        setup::run().await.expect("error executing setup");
-    });
+    setup::run().await.expect("error executing setup");
 
-    webserver::main();
+    webserver::main().await?;
 
     Ok(())
 }
