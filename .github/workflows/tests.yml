@@ -49,3 +49,21 @@ jobs:
       - name: Run tests
         run: |
           cargo test --release --verbose
+
+      - name: Run tests
+        run: |
+          cargo test --release --verbose
+
+      - name: Deploy to base.khonsulabs.com
+        if: github.ref == 'refs/heads/base.khonsulabs.com'
+        run: |
+          mkdir -p deploy
+          cp -r static/ deploy/
+          cp -r templates/ deploy/
+          cp target/release/server deploy/khonsubase
+          echo $SSH_KEY > base_ssh_id
+          chmod 0600 base_ssh_id
+          scp -ri ./base_ssh_id deploy base@base-box.khonsulabs.com:
+          rm base_ssh_id
+        env:
+          SSH_KEY: ${{ secrets.BASE_KHONSULABS_COM_DEPLOY_KEY }}
