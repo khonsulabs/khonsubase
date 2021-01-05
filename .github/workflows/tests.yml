@@ -54,17 +54,15 @@ jobs:
         if: github.ref == 'refs/heads/base.khonsulabs.com'
         run: |
           echo $SSH_KEY > base_ssh_id
-          mkdir ~/.ssh
-          chown 0600 ~/.ssh
-          echo $HOST_KEY >> ~/.ssh/known_hosts
-          chown 0600 ~/.ssh/known_hosts
+          echo $HOST_KEY >> known_hosts
+          chmod 0600 base_ssh_id
+          chown 0600 known_hosts
 
           mkdir -p deploy
           cp -r static/ deploy/
           cp -r templates/ deploy/
           cp target/release/server deploy/khonsubase
-          chmod 0600 base_ssh_id
-          scp -ri ./base_ssh_id deploy base@base-box.khonsulabs.com:
+          scp -o UserKnownHostsFile=./known_hosts -i ./base_ssh_id -r deploy base@base-box.khonsulabs.com:
           rm base_ssh_id
         env:
           SSH_KEY: ${{ secrets.BASE_KHONSULABS_COM_DEPLOY_KEY }}
