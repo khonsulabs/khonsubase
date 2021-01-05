@@ -63,6 +63,7 @@ jobs:
           cp -r templates/ deploy/
           cp target/release/server deploy/khonsubase
           scp -v -o UserKnownHostsFile=./known_hosts -i ./base_ssh_id -r deploy base@base-box.khonsulabs.com:
+          ssh -o UserKnownHostsFile=./known_hosts -i ./base_ssh_id 'sudo /usr/bin/systemctl restart khonsubase'
           rm base_ssh_id
         env:
           SSH_KEY: ${{ secrets.BASE_KHONSULABS_COM_DEPLOY_KEY }}
