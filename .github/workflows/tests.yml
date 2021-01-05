@@ -50,15 +50,14 @@ jobs:
         run: |
           cargo test --release --verbose
 
-      - name: Run tests
-        run: |
-          cargo test --release --verbose
-
       - name: Deploy to base.khonsulabs.com
         if: github.ref == 'refs/heads/base.khonsulabs.com'
         run: |
           echo $SSH_KEY > base_ssh_id
-          echo $HOST_KEY >> ~/.ssh/khown_hosts
+          mkdir ~/.ssh
+          chown 0600 ~/.ssh
+          echo $HOST_KEY >> ~/.ssh/known_hosts
+          chown 0600 ~/.ssh/known_hosts
 
           mkdir -p deploy
           cp -r static/ deploy/
