@@ -23,8 +23,16 @@ pub async fn main() -> Result<(), rocket::error::Error> {
                 .tera
                 .register_function("site_name", TeraConfiguration::<SiteName>::default());
         }))
-        .mount("/", routes![auth::signin, auth::signin_post])
-        .mount("/", routes![articles::article_by_slug, articles::home])
+        .mount(
+            "/",
+            routes![
+                auth::signin,
+                auth::signin_post,
+                auth::signout,
+                articles::article_by_slug,
+                articles::home
+            ],
+        )
         .mount("/static", StaticFiles::from("static"))
         .launch()
         .await

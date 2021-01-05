@@ -1,3 +1,4 @@
 mod account;
+mod session;
 
-pub use self::account::{Account, Installation};
+pub use self::{account::Account, session::Session};

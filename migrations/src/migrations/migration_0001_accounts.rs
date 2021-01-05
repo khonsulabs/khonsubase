@@ -18,8 +18,9 @@ pub fn migration() -> Migration {
             r#"
                 CREATE TABLE sessions (
                     id UUID PRIMARY KEY,
-                    account_id BIGINT NULL REFERENCES accounts(id),
+                    account_id BIGINT NOT NULL REFERENCES accounts(id),
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                     expires_at TIMESTAMPTZ NULL
                 )
         "#,
@@ -37,5 +38,21 @@ pub fn migration() -> Migration {
         "#,
         )
         .with_down("DROP TABLE IF EXISTS account_agreements")
+        .with_up(
+            "CREATE OR REPLACE FUNCTION validate_session(session_id UUID) RETURNS BIGINT AS $$
+                DECLARE
+                    session_account_id BIGINT;
+                BEGIN
+                    DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at < now() AND id = session_id;
+                    UPDATE sessions SET last_accessed_at = now() WHERE id = session_id RETURNING account_id into session_account_id;
+                    IF NOT FOUND THEN
+                        return NULL;
+                    ELSE
+                        return session_account_id;
+                    END IF;
+                END;
+        $$ LANGUAGE plpgsql",
+        )
+        .with_down("DROP FUNCTION IF EXISTS validate_session(UUID)")
         .debug()
 }

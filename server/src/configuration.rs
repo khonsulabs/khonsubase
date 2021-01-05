@@ -5,10 +5,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+mod session_maximum_days;
 mod site_name;
 mod site_primary_locale;
 
-pub use self::{site_name::SiteName, site_primary_locale::SitePrimaryLocale};
+pub use self::{
+    session_maximum_days::SessionMaximumDays, site_name::SiteName,
+    site_primary_locale::SitePrimaryLocale,
+};
 
 pub trait Configuration {
     type Type: Serialize + DeserializeOwned;

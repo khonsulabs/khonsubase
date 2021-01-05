@@ -46,7 +46,7 @@
             <input class="form-control" id="password" name="password" placeholder="{{ localize(key = "password", language = language) }}" required type="password"/>
             <div class="checkbox mb-3">
                 <label>
-                    <input id="rememberme" name="rememberme" type="checkbox" value="remember-me"/>
+                    <input id="rememberme" name="rememberme" type="checkbox" value="true"/>
                     {{ localize(key = "remember-me", language = language) }}
                 </label>
             </div>

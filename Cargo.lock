@@ -237,6 +237,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "serde",
  "time 0.1.44",
  "winapi 0.3.9",
 ]
@@ -343,6 +344,7 @@ dependencies = [
  "bcrypt",
  "chrono",
  "migrations",
+ "serde",
  "uuid",
 ]
 
@@ -1927,8 +1929,11 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time 0.1.44",
+ "time 0.2.23",
  "tokio",
  "unic-langid",
+ "uuid",
 ]
 
 [[package]]

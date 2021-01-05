@@ -1,7 +1,9 @@
 use crate::sqlx;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Account {
     pub id: i64,
     pub username: String,
@@ -38,6 +40,12 @@ impl Account {
 
     pub async fn find_by_username<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(username: &str, executor: E) -> sqlx::Result<Account> {
         sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE username = $1", username).fetch_one(executor).await
+    }
+
+    pub async fn find_by_session_id<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(session_id: Uuid, executor: E) -> sqlx::Result<Account> {
+        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = validate_session($1)", session_id)
+            .fetch_one(executor)
+            .await
     }
 
     pub fn set_password_hash(&mut self, new_password: &str) -> anyhow::Result<()> {
@@ -77,11 +85,4 @@ impl Account {
 
         Ok(())
     }
-}
-
-pub struct Installation {
-    pub id: Uuid,
-    pub account_id: i64,
-    pub created_at: DateTime<Utc>,
-    pub last_connected_at: DateTime<Utc>,
 }

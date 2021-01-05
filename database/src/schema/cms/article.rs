@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Article {
     pub id: i64,
     pub slug: String,
