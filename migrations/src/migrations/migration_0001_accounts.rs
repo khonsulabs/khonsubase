@@ -27,18 +27,6 @@ pub fn migration() -> Migration {
         )
         .with_down("DROP TABLE IF EXISTS sessions")
         .with_up(
-            r#"
-                CREATE TABLE account_agreements (
-                    account_id BIGINT NULL REFERENCES accounts(id),
-                    agreement TEXT NOT NULL,
-                    version_agreed_to TEXT NOT NULL,
-                    agreed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                    CONSTRAINT account_agreements_pkey PRIMARY KEY (account_id, agreement)
-                )
-        "#,
-        )
-        .with_down("DROP TABLE IF EXISTS account_agreements")
-        .with_up(
             "CREATE OR REPLACE FUNCTION validate_session(session_id UUID) RETURNS BIGINT AS $$
                 DECLARE
                     session_account_id BIGINT;
@@ -54,5 +42,4 @@ pub fn migration() -> Migration {
         $$ LANGUAGE plpgsql",
         )
         .with_down("DROP FUNCTION IF EXISTS validate_session(UUID)")
-        .debug()
 }
