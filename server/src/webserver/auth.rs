@@ -19,6 +19,7 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize)]
 struct SignInContext {
     request: RequestData,
+    username: Option<String>,
     error_message: Option<String>,
     redirect_target: Option<String>,
 }
@@ -40,6 +41,7 @@ pub async fn signin(
         "signin",
         SignInContext {
             request: RequestData::new(language, path, session_id).await,
+            username: None,
             redirect_target: origin,
             error_message: None,
         },
@@ -138,6 +140,7 @@ pub async fn signin_post(
         SignInContext {
             request: RequestData::new(language, path, session_id).await,
             redirect_target: user.redirecttarget.clone(),
+            username: Some(user.username.clone()),
             error_message: Some(error_message.to_string()),
         },
     ))
@@ -201,3 +204,76 @@ impl<'a, 'r> FromRequest<'a, 'r> for Referer {
             .or_forward(())
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use core::panic;
+
+//     use crate::{
+//         test_helpers::{self, TEST_ACCOUNT_PASSWORD, TEST_ACCOUNT_USERNAME},
+//         webserver::rocket_server,
+//     };
+//     use rocket::{
+//         http::{ContentType, Status},
+//         local::asynchronous::Client,
+//     };
+
+//     async fn test_login<T>(user: &str, pass: &str, status: Status, body: T)
+//     where
+//         T: Into<Option<&'static str>>,
+//     {
+//         let check_body = body.into();
+//         let client = Client::tracked(rocket_server()).await.unwrap();
+//         let query = format!("username={}&password={}", user, pass);
+//         let response = client
+//             .post("/signin")
+//             .header(ContentType::Form)
+//             .body(&query)
+//             .dispatch()
+//             .await;
+
+//         let response_status = response.status();
+//         let status_matches = response_status == status;
+//         let mut body_str = None;
+
+//         let body_matches = if let Some(expected_str) = &check_body {
+//             body_str = response.into_string().await;
+//             body_str
+//                 .as_ref()
+//                 .map_or(false, |s| s.contains(expected_str))
+//         } else {
+//             false
+//         };
+
+//         if !status_matches || !body_matches {
+//             panic!(
+//                 "Unexpected result testing login. Expected {:?}:{:?} but got {:?}:{:?}",
+//                 status, check_body, response_status, body_str
+//             );
+//         }
+//     }
+
+//     #[rocket::async_test]
+//     async fn test_good_login() -> anyhow::Result<()> {
+//         test_helpers::initialize().await;
+//         let pool = database::pool();
+//         let mut tx = pool.begin().await?;
+//         test_helpers::setup_test_account(&mut tx).await?;
+
+//         test_login(
+//             TEST_ACCOUNT_USERNAME,
+//             TEST_ACCOUNT_PASSWORD,
+//             Status::SeeOther,
+//             None,
+//         )
+//         .await;
+
+//         // let form = NewIssueForm {
+//         //     summary: String::from("Test Issue"),
+//         //     description: None
+//         // };
+//         // super::create_issue(Form::try_from(form.clone()), UserLanguage(String::from("en-US")), FullPathAndQuery, session)
+
+//         Ok(())
+//     }
+// }

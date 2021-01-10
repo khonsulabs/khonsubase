@@ -7,6 +7,10 @@ mod configuration;
 mod setup;
 mod webserver;
 
+#[cfg(test)]
+#[allow(dead_code)]
+mod test_helpers;
+
 #[rocket::main]
 async fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().unwrap();

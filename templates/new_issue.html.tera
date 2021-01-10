@@ -1,0 +1,44 @@
+{% extends "base" %}
+{% block title %}
+    {{ localize(key = "new-issue", language = request.language) }} - {{ site_name() }}
+{% endblock title %}
+{% block content %}
+    <div class="container-fluid">
+        <form accept-charset="utf-8" action="/issues/new" method="POST">
+            <h1 class="h3 mb-3 fw-normal">{{ localize(key = "new-issue", language = request.language) }}</h1>
+            {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ localize(key = error_message, language = request.language) }}
+                </div>
+            {% endif %}
+            <label for="summary">{{ localize(key = "issue-summary", language = request.language) }}</label>
+            <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text"/>
+            <label for="description">{{ localize(key = "issue-description", language = request.language) }}</label>
+            <input id="description" name="description" type="hidden"/>
+            <div class="container-fluid">
+                <div id="description_editor"></div>
+            </div>
+            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ localize(key = "new-issue", language = request.language) }}</button>
+        </form>
+    </div>
+{% endblock content %}
+{% block extrahead %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet"/>
+    <link href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" rel="stylesheet"/>
+{% endblock extrahead %}
+{% block afterbody %}
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            const descriptionEditor = new toastui.Editor.factory({
+                el: document.querySelector("#description_editor"), 
+                usageStatistics: false, 
+                events: {
+                    change: function() {
+                        $('#description').val(descriptionEditor.getMarkdown());
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock afterbody %}

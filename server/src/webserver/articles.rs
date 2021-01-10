@@ -19,6 +19,7 @@ pub fn find_article(slug: &str) -> Option<Article> {
 
 #[derive(Serialize, Deserialize)]
 struct MarkdownContext {
+    slug: String,
     request: RequestData,
     markdown: String,
     view_only: bool,
@@ -55,6 +56,7 @@ async fn render_article(
     Template::render(
         "markdown",
         MarkdownContext {
+            slug: article.slug,
             request: RequestData::new(language, path, session).await,
             view_only: true,
             markdown: article.body,

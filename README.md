@@ -30,6 +30,7 @@ As someone who ran his own tech team at a company he co-founded, Jon never reall
 - Issue/Bug tracking with dependencies and unlimited hierarchy
 - Personal task list management with private tasks and a unified Up Next view
 - Markdown-based Knowledgebase
+- Simple JSON-based RESTful API that exposes all of the data
 
 ### What about feature X?
 

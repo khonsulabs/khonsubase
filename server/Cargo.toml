@@ -3,6 +3,7 @@ name = "server"
 version = "0.0.1"
 authors = ["Jonathan Johnson <jon@khonsulabs.com>"]
 edition = "2018"
+workspace = "../"
 
 [dependencies]
 database = { path = "../database" }
@@ -24,3 +25,4 @@ tokio = { version = "0.2" }
 uuid = { version = "0.8", features = ["v4"] }
 time-01 = { package = "time", version = "0.1" }
 time-02 = { package = "time", version = "0.2" }
+comrak = "0.9"

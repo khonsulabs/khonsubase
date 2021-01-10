@@ -1,18 +1,9 @@
 {% extends "base" %}
+{% block title %}
+    {{ slug }} - {{ site_name() }}
+{% endblock title %}
 {% block content %}
     <div class="container-fluid">
-        <div id="viewer"></div>
+        {{ markdown | render_markdown }}
     </div>
 {% endblock content %}
-{% block extrahead %}
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet"/>
-    <link href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" rel="stylesheet"/>
-{% endblock extrahead %}
-{% block afterbody %}
-    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
-    <script type="text/javascript">
-        $(function () {
-            const viewer = new toastui.Editor.factory({el: document.querySelector("#viewer"), usageStatistics: false, viewer: {{ view_only }}, initialValue: {{ markdown | json_encode() | safe }}});
-        });
-    </script>
-{% endblock afterbody %}

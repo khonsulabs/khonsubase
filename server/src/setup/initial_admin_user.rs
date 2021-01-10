@@ -7,7 +7,9 @@ pub async fn run() -> anyhow::Result<()> {
             .generate_one()
             .unwrap();
         let mut account = Account::new(String::from("admin"), &password)?;
-        account.save(database::pool()).await?;
+        let mut tx = database::pool().begin().await?;
+        account.save(&mut tx).await?;
+        tx.commit().await?;
 
         println!(
             "No accounts found. Generating default user. Username admin, password: {}",
