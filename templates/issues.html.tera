@@ -1,7 +1,0 @@
-{% extends "base" %}
-{% block title %}
-    {{ localize(key = "issues", language = request.language) }} - {{ site_name() }}
-{% endblock title %}
-{% block content %}
-    <div class="container-fluid signin-form"></div>
-{% endblock content %}

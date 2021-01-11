@@ -32,12 +32,12 @@
     </style>
 {% endblock extrahead %}
 {% block content %}
-    <div class="container-fluid signin-form">
+    <div class="container signin-form">
         <form accept-charset="utf-8" action="/signin" method="POST">
             {% if redirect_target %}
                 <input name="redirecttarget" type="hidden" value="{{ redirect_target }}"/>
             {% endif %}
-            <h1 class="h3 mb-3 fw-normal">{{ localize(key = "sign-in-prompt", language = request.language) }}</h1>
+            <h1 class="mb-3 fw-normal">{{ localize(key = "sign-in-prompt", language = request.language) }}</h1>
             {% if error_message %}
                 <div class="alert alert-danger" role="alert">
                     {{ localize(key = error_message, language = request.language) }}

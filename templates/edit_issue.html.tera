@@ -7,14 +7,14 @@
     {% endif %}
 {% endblock title %}
 {% block content %}
-    <div class="container-fluid">
+    <div class="container">
         <form accept-charset="utf-8" action="/issues/save" method="POST">
             {% if issue_id %}
                 <input type="hidden" name="issue_id" value="{{ issue_id }}" />
                 <input type="hidden" name="current_revision_id" value="{{ current_revision_id }}" />
             {% endif %}
 
-            <h1 class="h3 mb-3 fw-normal">
+            <h1 class="mb-3 fw-normal">
                 {% if issue_id %}
                     {{ localize(key = "edit-issue", issue_id = issue_id, language = request.language) }}
                 {% else %}
@@ -26,14 +26,18 @@
                     {{ localize(key = error_message, language = request.language) }}
                 </div>
             {% endif %}
-            <label for="summary">{{ localize(key = "issue-summary", language = request.language) }}</label>
-            <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text" value="{{ summary }}"/>
-            <label for="description">{{ localize(key = "issue-description", language = request.language) }}</label>
-            <input id="description" name="description" type="hidden" value="{{ description }}"/>
-            <div class="container-fluid">
+            <div class="mb-3">
+                <label for="summary">{{ localize(key = "issue-summary", language = request.language) }}</label>
+                <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text" value="{{ summary }}"/>
+            </div>
+
+            <div class="mb-3">
+                <label for="description">{{ localize(key = "issue-description", language = request.language) }}</label>
+                <input id="description" name="description" type="hidden" value="{{ description }}"/>
                 <div id="description_editor"></div>
             </div>
-            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ localize(key = "save-issue", language = request.language) }}</button>
+
+            <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "save-issue", language = request.language) }}</button>
         </form>
     </div>
 {% endblock content %}

@@ -1,0 +1,27 @@
+{% extends "base" %}
+{% block title %}
+    {{ localize(key = "issues", language = request.language) }} - {{ site_name() }}
+{% endblock title %}
+{% block content %}
+    <div class="container">
+        <h1>{{ localize(key = "issues", language = request.language) }}</h1>
+        <table class="table table-hover table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">{{ localize(key = "issue-summary", language = request.language) }}</th>
+                    <th scope="col">{{ localize(key = "issue-created-at", language = request.language) }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for issue in response.issues %}
+                    <tr class="position-relative">
+                        <td>{{ issue.id }}</td>
+                        <td><a href="/issues/{{ issue.id }}" class="stretched-link">{{ issue.summary }}</a></td>
+                        <td>{{ issue.created_at | date }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock content %}

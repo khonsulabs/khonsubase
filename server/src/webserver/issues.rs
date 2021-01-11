@@ -2,14 +2,35 @@ use rocket::{request::Form, response::Redirect};
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use database::schema::issues::{Issue, IssueRevision, IssueRevisionChange};
+use database::schema::issues::{
+    Issue, IssueOrderingField, IssueQueryBuilder, IssueQueryResults, IssueRevision,
+    IssueRevisionChange,
+};
 use database::sqlx;
 
 use super::{auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData};
 
+#[derive(Serialize, Deserialize)]
+struct ListIssuesContext {
+    request: RequestData,
+    response: IssueQueryResults,
+}
+
 #[get("/issues")]
-pub async fn list_issues() -> Template {
-    todo!()
+pub async fn list_issues(
+    language: UserLanguage,
+    path: FullPathAndQuery,
+    session: Option<SessionId>,
+) -> Template {
+    let request = RequestData::new(language, path, session).await;
+    match IssueQueryBuilder::new()
+        .open()
+        .query(database::pool())
+        .await
+    {
+        Ok(response) => Template::render("list_issues", ListIssuesContext { request, response }),
+        Err(sql_error) => todo!("Error executing query: {:?}", sql_error),
+    }
 }
 
 #[derive(Serialize, Deserialize)]

@@ -126,7 +126,7 @@ impl Default for IssueOrdering {
     fn default() -> Self {
         Self {
             field: IssueOrderingField::Creation,
-            ascending: true,
+            ascending: false,
         }
     }
 }
@@ -153,7 +153,7 @@ impl Default for IssuePagination {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IssueQueryResults {
     pub issues: Vec<Issue>,
     pub total_count: usize,
@@ -212,9 +212,10 @@ impl IssueQueryBuilder {
                 summary, 
                 description, 
                 parent_id, 
+                current_revision_id,
                 created_at, 
                 completed_at,
-                count(*) OVER() as total_count,
+                count(*) OVER() as total_count
             FROM issues 
             WHERE {}
             ORDER BY {}

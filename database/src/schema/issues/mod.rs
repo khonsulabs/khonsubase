@@ -2,6 +2,9 @@ mod issue;
 mod issue_revision;
 
 pub use self::{
-    issue::{Issue, IssueQueryBuilder},
+    issue::{
+        Issue, IssueOrdering, IssueOrderingField, IssuePagination, IssueQueryBuilder,
+        IssueQueryResults,
+    },
     issue_revision::{IssueRevision, IssueRevisionChange},
 };

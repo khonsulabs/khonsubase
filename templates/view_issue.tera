@@ -1,31 +1,11 @@
 {% extends "base" %}
 {% block title %}
-    {{ localize(key = "new-issue", language = request.language) }} - {{ site_name() }}
+    #{{ issue.id }} - {{ issue.summary }} - {{ site_name() }}
 {% endblock title %}
 {% block content %}
-    <div class="container-fluid">
-        <h1 class="h3 mb-3 fw-normal">{{ issue.summary }}</h1>
+    <div class="container">
+        <h1 class="mb-3 fw-normal">{{ issue.summary }}</h1>
         
-        {{ issue.description }}
+        {{ issue.description | render_markdown }}
     </div>
 {% endblock content %}
-{% block extrahead %}
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet"/>
-    <link href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" rel="stylesheet"/>
-{% endblock extrahead %}
-{% block afterbody %}
-    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
-    <script type="text/javascript">
-        $(function () {
-            const descriptionEditor = new toastui.Editor.factory({
-                el: document.querySelector("#description_editor"), 
-                usageStatistics: false, 
-                events: {
-                    change: function() {
-                        $('#description').val(descriptionEditor.getMarkdown());
-                    }
-                }
-            });
-        });
-    </script>
-{% endblock afterbody %}
