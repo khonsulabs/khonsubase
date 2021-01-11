@@ -3,13 +3,12 @@ use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
 use database::schema::issues::{
-    Issue, IssueOrderingField, IssueQueryBuilder, IssueQueryResults, IssueRevision,
-    IssueRevisionChange, IssueRevisionView, IssueView,
+    Issue, IssueQueryBuilder, IssueQueryResults, IssueRevision, IssueRevisionChange,
+    IssueRevisionView, IssueView,
 };
 use database::sqlx;
 
 use super::{auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData};
-use database::sqlx::types::chrono::{DateTime, Utc};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {

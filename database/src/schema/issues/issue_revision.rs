@@ -1,12 +1,8 @@
-use std::collections::HashMap;
-use std::iter::FromIterator;
-
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-
-use migrations::sqlx;
-
 use crate::schema::accounts::User;
+use chrono::{DateTime, Utc};
+use migrations::sqlx;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct IssueRevision {
