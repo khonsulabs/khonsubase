@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
-use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 use serde::{Deserialize, Serialize};
+
+use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Issue {
@@ -50,11 +51,20 @@ impl Issue {
     ) -> sqlx::Result<()> {
         if self.id == 0 {
             let row = sqlx::query!(
-                "INSERT INTO issues (author_id, summary, description, parent_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at",
+                r#"INSERT INTO issues (
+                    author_id, 
+                    summary, 
+                    description, 
+                    parent_id,
+                    current_revision_id,
+                    completed_at
+                   ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at"#,
                 self.author_id,
                 &self.summary,
                 self.description.as_ref(),
                 self.parent_id,
+                self.current_revision_id,
+                self.completed_at,
             )
             .fetch_one(executor)
             .await?;
@@ -62,7 +72,25 @@ impl Issue {
             self.id = row.id;
             self.created_at = row.created_at;
         } else {
-            todo!("Need to use a transaction, lock the row, get the old version (any existing copy that the server may have before calling this method could be out of date). Create the issue_revision, update the issue, and commit the transaction")
+            sqlx::query!(
+                r#"UPDATE issues SET 
+                    author_id = $1,
+                    summary = $2,
+                    description = $3,
+                    parent_id = $4,
+                    current_revision_id = $5,
+                    completed_at = $6
+                   WHERE id = $7"#,
+                self.author_id,
+                &self.summary,
+                self.description.as_ref(),
+                self.parent_id,
+                self.current_revision_id,
+                self.completed_at,
+                self.id,
+            )
+            .execute(executor)
+            .await?;
         }
 
         Ok(())

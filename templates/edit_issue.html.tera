@@ -1,24 +1,39 @@
 {% extends "base" %}
 {% block title %}
-    {{ localize(key = "new-issue", language = request.language) }} - {{ site_name() }}
+    {% if issue_id %}
+        {{ localize(key = "edit-issue", issue_id = issue_id, language = request.language) }} - {{ summary }} - {{ site_name() }}
+    {% else %}
+        {{ localize(key = "new-issue", language = request.language) }} - {{ site_name() }}
+    {% endif %}
 {% endblock title %}
 {% block content %}
     <div class="container-fluid">
-        <form accept-charset="utf-8" action="/issues/new" method="POST">
-            <h1 class="h3 mb-3 fw-normal">{{ localize(key = "new-issue", language = request.language) }}</h1>
+        <form accept-charset="utf-8" action="/issues/save" method="POST">
+            {% if issue_id %}
+                <input type="hidden" name="issue_id" value="{{ issue_id }}" />
+                <input type="hidden" name="current_revision_id" value="{{ current_revision_id }}" />
+            {% endif %}
+
+            <h1 class="h3 mb-3 fw-normal">
+                {% if issue_id %}
+                    {{ localize(key = "edit-issue", issue_id = issue_id, language = request.language) }}
+                {% else %}
+                    {{ localize(key = "new-issue", language = request.language) }}
+                {% endif %}
+            </h1>
             {% if error_message %}
                 <div class="alert alert-danger" role="alert">
                     {{ localize(key = error_message, language = request.language) }}
                 </div>
             {% endif %}
             <label for="summary">{{ localize(key = "issue-summary", language = request.language) }}</label>
-            <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text"/>
+            <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text" value="{{ summary }}"/>
             <label for="description">{{ localize(key = "issue-description", language = request.language) }}</label>
-            <input id="description" name="description" type="hidden"/>
+            <input id="description" name="description" type="hidden" value="{{ description }}"/>
             <div class="container-fluid">
                 <div id="description_editor"></div>
             </div>
-            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ localize(key = "new-issue", language = request.language) }}</button>
+            <button class="w-100 btn btn-lg btn-primary" type="submit">{{ localize(key = "save-issue", language = request.language) }}</button>
         </form>
     </div>
 {% endblock content %}
@@ -32,7 +47,8 @@
         $(function () {
             const descriptionEditor = new toastui.Editor.factory({
                 el: document.querySelector("#description_editor"), 
-                usageStatistics: false, 
+                usageStatistics: false,
+                initialValue: $('#description').val(),
                 events: {
                     change: function() {
                         $('#description').val(descriptionEditor.getMarkdown());

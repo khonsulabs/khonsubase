@@ -44,5 +44,4 @@ pub fn migration() -> Migration {
         .with_up("ALTER TABLE sessions ADD CONSTRAINT sessions_account_id_cascading_fkey FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE")
         .with_up("ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_account_id_fkey")
         .with_down("ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_account_id_cascading_fkey")
-        .debug()
 }
