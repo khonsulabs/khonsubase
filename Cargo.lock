@@ -396,6 +396,7 @@ dependencies = [
  "chrono",
  "either",
  "futures",
+ "maplit",
  "migrations",
  "serde",
  "serde_json",

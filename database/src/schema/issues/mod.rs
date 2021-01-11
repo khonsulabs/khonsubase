@@ -4,7 +4,9 @@ mod issue_revision;
 pub use self::{
     issue::{
         Issue, IssueOrdering, IssueOrderingField, IssuePagination, IssueQueryBuilder,
-        IssueQueryResults,
+        IssueQueryResults, IssueView,
     },
-    issue_revision::{IssueRevision, IssueRevisionChange},
+    issue_revision::{
+        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueRevisionViewChange,
+    },
 };

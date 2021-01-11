@@ -8,8 +8,8 @@ use uuid::Uuid;
 pub struct Account {
     pub id: i64,
     pub username: String,
-    pub password_hash: String,
     pub display_name: Option<String>,
+    pub password_hash: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -92,4 +92,11 @@ impl Account {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub id: i64,
+    pub username: String,
+    pub display_name: Option<String>,
 }

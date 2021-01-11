@@ -1,7 +1,58 @@
+use crate::schema::accounts::User;
 use chrono::{DateTime, Utc};
+use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 use serde::{Deserialize, Serialize};
 
-use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IssueView {
+    pub id: i64,
+    pub author: User,
+    pub summary: String,
+    pub description: Option<String>,
+    pub parent_id: Option<i64>,
+    pub current_revision_id: Option<i64>,
+    pub created_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+impl IssueView {
+    pub async fn load(issue_id: i64) -> sqlx::Result<Self> {
+        let row = sqlx::query!(
+            r#"SELECT 
+                issues.id, 
+                accounts.id as author_id, 
+                accounts.display_name as author_display_name, 
+                accounts.username as author_username, 
+                summary, 
+                description, 
+                parent_id, 
+                current_revision_id, 
+                issues.created_at, 
+                completed_at 
+               FROM issues
+               INNER JOIN accounts ON issues.author_id = accounts.id 
+               WHERE issues.id = $1"#,
+            issue_id
+        )
+        .fetch_one(crate::pool())
+        .await?;
+
+        Ok(Self {
+            id: row.id,
+            author: User {
+                id: row.author_id,
+                username: row.author_username,
+                display_name: row.author_display_name,
+            },
+            summary: row.summary,
+            description: row.description,
+            parent_id: row.parent_id,
+            current_revision_id: row.current_revision_id,
+            created_at: row.created_at,
+            completed_at: row.completed_at,
+        })
+    }
+}
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Issue {

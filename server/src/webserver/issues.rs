@@ -4,11 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use database::schema::issues::{
     Issue, IssueOrderingField, IssueQueryBuilder, IssueQueryResults, IssueRevision,
-    IssueRevisionChange,
+    IssueRevisionChange, IssueRevisionView, IssueView,
 };
 use database::sqlx;
 
 use super::{auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData};
+use database::sqlx::types::chrono::{DateTime, Utc};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -34,9 +35,30 @@ pub async fn list_issues(
 }
 
 #[derive(Serialize, Deserialize)]
+struct IssueTimeline {
+    entries: Vec<IssueRevisionView>,
+}
+
+#[derive(Serialize, Deserialize)]
 struct ViewIssueContext {
     request: RequestData,
-    issue: Issue,
+    issue: IssueView,
+    timeline: IssueTimeline,
+}
+
+async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Template> {
+    let issue = IssueView::load(issue_id).await?;
+    let timeline = IssueTimeline {
+        entries: IssueRevisionView::list_for(issue_id).await?,
+    };
+    Ok(Template::render(
+        "view_issue",
+        ViewIssueContext {
+            request,
+            issue,
+            timeline,
+        },
+    ))
 }
 
 #[get("/issues/<issue_id>")]
@@ -47,9 +69,9 @@ pub async fn view_issue(
     issue_id: i64,
 ) -> Template {
     let request = RequestData::new(language, path, session).await;
-    match Issue::load(issue_id).await {
-        Ok(issue) => Template::render("view_issue", ViewIssueContext { request, issue }),
-        Err(_) => todo!(),
+    match render_issue(request, issue_id).await {
+        Ok(template) => template,
+        Err(err) => todo!("db error: {:?}", err),
     }
 }
 

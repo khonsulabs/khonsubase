@@ -1,11 +1,68 @@
+{% import "macros" as macros %}
+
 {% extends "base" %}
 {% block title %}
-    #{{ issue.id }} - {{ issue.summary }} - {{ site_name() }}
+    {{ localize(key = "view-issue", issue_id = issue.id, language = request.language) }} - {{ issue.summary }} - {{ site_name() }}
 {% endblock title %}
 {% block content %}
     <div class="container">
-        <h1 class="mb-3 fw-normal">{{ issue.summary }}</h1>
-        
-        {{ issue.description | render_markdown }}
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="p-2 flex-grow-1">{{ localize(key = "view-issue", issue_id = issue.id, language = request.language) }} - {{ issue.summary }}</h1>
+            {% if request.session %}
+                <div class="p-2">
+                    <a class="btn btn-primary" role="button" href="/issues/edit/{{ issue.id }}">{{ localize(key = "issue-edit-button", language = request.language) }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="container issue-description">
+            {{ issue.description | render_markdown }}
+        </div>
+
+        <div class="d-flex flex-row">
+            <div class="p-2">{{ localize(key = "issue-authored-by", language = request.language) }} {{ macros::render_user(user = issue.author) }}</div>
+            <div class="p-2">{{ localize(key = "issue-created-at", language = request.language) }} {{ issue.created_at | date(format=localize(key = "datetime-format", language = request.language)) }}</div>
+        </div>
+
+        <hr>
+
+        {% for entry in timeline.entries %}
+            {% if loop.first %}
+                <h2>{{ localize(key = "issue-timeline", language = request.language) }}</h2>
+            {% else %}
+                <hr>
+            {% endif %}
+            {% set entry_date = entry.created_at | date(format=localize(key = "datetime-format", language = request.language)) %}
+            <h4>{{ localize(key = "issue-updated-summmary", user = macros::render_user(user = issue.author), date = entry_date, language = request.language) }}</h4>
+            {% for property, change in entry.changes %}
+                {% if loop.first %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>{{ localize(key = "issue-change-property", language = request.language) }}</th>
+                                <th>{{ localize(key = "issue-change-old-value", language = request.language) }}</th>
+                                <th>{{ localize(key = "issue-change-new-value", language = request.language) }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                {% endif %}
+                            <tr>
+                                <td>{{ property }}</td>
+                                <td>{{ change.old_value | as_str }}</td>
+                                <td>{{ change.new_value | as_str }}</td>
+                            </tr>
+                {% if loop.first %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        {% if request.session %}
+            <div class="d-flex flex-row-reverse">
+                <div class="p-2">
+                    <a class="btn btn-primary" role="button" href="/issues/edit/{{ issue.id }}">{{ localize(key = "issue-edit-button", language = request.language) }}</a>
+                </div>
+            </div>
+        {% endif %}
     </div>
 {% endblock content %}

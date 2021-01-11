@@ -1,4 +1,7 @@
 mod account;
 mod session;
 
-pub use self::{account::Account, session::Session};
+pub use self::{
+    account::{Account, User},
+    session::Session,
+};
