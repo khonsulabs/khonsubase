@@ -63,6 +63,8 @@ fn rocket_server() -> rocket::Rocket {
                 auth::signin,
                 auth::signin_post,
                 auth::signout,
+                auth::change_password,
+                auth::change_password_post,
                 articles::article_by_slug,
                 articles::home,
                 issues::new_issue,

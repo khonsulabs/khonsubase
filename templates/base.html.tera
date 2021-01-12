@@ -1,101 +1,105 @@
 <!doctype html>
 <html lang="{{ request.language | language_code }}">
-    <head>
-        <meta charset="utf-8"/>
-        <meta content="width=device-width, initial-scale=1" name="viewport"/>
-        <title>
-            {% block title %}
-                {{ site_name() }}
-            {% endblock title %}
-        </title>
-        <link
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
+    <title>
+        {% block title %}
+        {{ site_name() }}
+        {% endblock title %}
+    </title>
+    <link
             crossorigin="anonymous"
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css"
             integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1"
             rel="stylesheet"/>
-        <link href="/static/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
-        <style type="text/css">
-            .navbar-item .btn {
-                display: inline-block;
-                vertical-align: baseline;
-            }
+    <link href="/static/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+    <style type="text/css">
+        .navbar-item .btn {
+            display: inline-block;
+            vertical-align: baseline;
+        }
 
-            .inline-avatar {
-                height: 1em;
-            }
-        </style>
-        {% block extrahead %}{% endblock extrahead %}
-    </head>
-    <body>
-        <nav class="navbar navbar-expand-md navbar-light bg-light">
-            <div class="container">
-                <a class="navbar-brand" href="/">{{ site_name() }}</a>
-                <button
-                    aria-controls="navbarSupportedContent"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                    class="navbar-toggler"
-                    data-target="#navbarSupportedContent"
-                    data-toggle="collapse"
-                    type="button">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item active">
-                            <a class="nav-link" href="/">{{ localize(key = "home", language = request.language) }}</a>
+        .inline-avatar {
+            height: 1em;
+        }
+    </style>
+    {% block extrahead %}{% endblock extrahead %}
+</head>
+<body>
+<nav class="navbar navbar-expand-md navbar-light bg-light">
+    <div class="container">
+        <a class="navbar-brand" href="/">{{ site_name() }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="/">{{ localize(key = "home", language = request.language) }}</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/issues">{{ localize(key = "issues", language = request.language) }}</a>
+                </li>
+                {% if request.session %}
+                <li class="navbar-item">
+                    <a class="btn btn-primary" href="/issues/new" role="button">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <form class="d-flex ms-4">
+                        <input aria-label="Search" class="form-control" placeholder="Search" type="search"/>
+                        <button class="btn btn-outline-success ms-2" disabled type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                {% if request.session %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="/user/{{ request.session.account.id }}/avatar.jpg?size=32" class="inline-avatar"/>{{
+                        request.session.account.display_name | default(default=request.session.account.username) }}
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="/user/{{ request.session.account.id }}">{{ localize(key = "view-profile", language = request.language) }}</a></li>
+                        <li><a class="dropdown-item" href="/user/change-password">{{ localize(key = "change-password", language = request.language) }}</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/issues">{{ localize(key = "issues", language = request.language) }}</a>
-                        </li>
-                        {% if request.session %}
-                            <li class="navbar-item">
-                                <a class="btn btn-primary" href="/issues/new" role="button">
-                                    <i class="bi bi-plus-circle-fill"></i>
-                                </a>
-                            </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <form class="d-flex ms-4">
-                                <input aria-label="Search" class="form-control" placeholder="Search" type="search"/>
-                                <button class="btn btn-outline-success ms-2" disabled type="submit">
-                                    <i class="bi bi-search"></i>
-                                </button>
-                            </form>
-                        </li>
+                        <li><a class="dropdown-item" href="/signout?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key =
+                            "sign-out", language = request.language) }}</a></li>
                     </ul>
-                    <ul class="navbar-nav">
-                        {% if request.session %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="/user/{{ request.session.account.id }}"><img src="/user/{{ request.session.account.id }}/avatar.jpg?size=32" class="inline-avatar"/>{{ request.session.account.username }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="btn btn-outline-dark" href="/signout?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-out", language = request.language) }}</a>
-                            </li>
-                        {% else %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="/signin?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-in", language = request.language) }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="btn btn-outline-success" href="/signup?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-up", language = request.language) }}</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        </nav>
-        {% block header %}{% endblock header %}
-        {% block content %}{% endblock content %}
-        <script crossorigin="anonymous" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
-        <script
-            crossorigin="anonymous"
-            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
-            src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-        <script
-            crossorigin="anonymous"
-            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
-            src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-        {% block footer %}{% endblock footer %}
-        {% block afterbody %}{% endblock afterbody %}
-    </body>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href=""></a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/signin?origin={{ request.current_path_and_query | urlencode }}">{{
+                        localize(key = "sign-in", language = request.language) }}</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-outline-success"
+                       href="/signup?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key =
+                        "sign-up", language = request.language) }}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+{% block header %}{% endblock header %}
+{% block content %}{% endblock content %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
+        crossorigin="anonymous"></script>
+{% block footer %}{% endblock footer %}
+{% block afterbody %}{% endblock afterbody %}
+</body>
 </html></body></html>

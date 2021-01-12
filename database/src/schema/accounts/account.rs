@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::sqlx;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub id: i64,
     pub username: String,
@@ -50,6 +50,20 @@ impl Account {
             Err(sqlx::Error::RowNotFound) => Ok(false),
             Err(err) => Err(err),
         }
+    }
+
+    pub async fn load<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        id: i64,
+        executor: E,
+    ) -> sqlx::Result<Account> {
+        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = $1", id).fetch_one(executor).await
+    }
+
+    pub async fn load_for_update<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        id: i64,
+        executor: E,
+    ) -> sqlx::Result<Account> {
+        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = $1 FOR UPDATE", id).fetch_one(executor).await
     }
 
     pub async fn find_by_username<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(

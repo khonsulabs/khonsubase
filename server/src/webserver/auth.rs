@@ -1,10 +1,3 @@
-use crate::configuration::{ConfigurationManager, SessionMaximumDays};
-
-use super::{localization::UserLanguage, FullPathAndQuery, RequestData};
-use database::{
-    schema::accounts::{Account, Session},
-    sqlx::{self, types::chrono::Utc},
-};
 use rocket::{
     http::{Cookie, CookieJar, SameSite},
     outcome::IntoOutcome,
@@ -15,6 +8,18 @@ use rocket::{
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use database::{
+    schema::accounts::{Account, Session},
+    sqlx::{self, types::chrono::Utc},
+};
+
+use crate::{
+    configuration::{ConfigurationManager, SessionMaximumDays},
+    webserver::Failure,
+};
+
+use super::{localization::UserLanguage, FullPathAndQuery, RequestData};
 
 #[derive(Serialize, Deserialize)]
 struct SignInContext {
@@ -146,6 +151,133 @@ pub async fn signin_post(
     ))
 }
 
+#[derive(Serialize, Deserialize)]
+struct ChangePasswordContext {
+    request: RequestData,
+    success_message: Option<String>,
+    error_message: Option<String>,
+}
+
+#[get("/user/change-password")]
+pub async fn change_password(
+    language: UserLanguage,
+    session_id: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session_id).await;
+    if request.logged_in() {
+        Ok(Template::render(
+            "change_password",
+            ChangePasswordContext {
+                request,
+                success_message: None,
+                error_message: None,
+            },
+        ))
+    } else {
+        Err(Failure::redirect_to_signin(Some(
+            &request.current_path_and_query,
+        )))
+    }
+}
+
+#[derive(FromForm, Debug)]
+pub struct ChangePasswordForm {
+    current_password: String,
+    new_password: String,
+    confirm_password: String,
+}
+
+fn check_password_meets_requirements(password: &str) -> Result<(), &'static str> {
+    let info = passwords::analyzer::analyze(password);
+    if info.length() < 8 {
+        return Err("change-password-error-too-short");
+    }
+
+    if info.is_common() {
+        return Err("change-password-error-is-common");
+    }
+
+    // TODO add more password security?
+
+    Ok(())
+}
+
+async fn save_new_password(
+    account_id: i64,
+    session_id: Uuid,
+    new_password: &str,
+) -> anyhow::Result<()> {
+    let mut tx = database::pool().begin().await?;
+    let mut account = Account::load_for_update(account_id, &mut tx).await?;
+    account.set_password_hash(new_password)?;
+    account.save(&mut tx).await?;
+
+    Session::invalidate_all_except_for(account_id, session_id, &mut tx).await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+async fn update_password(
+    account: &Account,
+    session_id: Uuid,
+    form: Form<ChangePasswordForm>,
+) -> Result<(), &'static str> {
+    check_password_meets_requirements(&form.new_password)?;
+
+    if form.new_password.trim() != form.confirm_password.trim() {
+        return Err("change-password-error-password-mismatch");
+    }
+
+    if !account
+        .verify_password(&form.current_password)
+        .map_err(|_| "internal-error-saving")?
+    {
+        return Err("change-password-error-existing-password-incorrect");
+    }
+
+    save_new_password(account.id, session_id, &form.new_password)
+        .await
+        .map_err(|_| "internal-error-saving")
+}
+
+#[post("/user/change-password", data = "<form>")]
+pub async fn change_password_post(
+    form: Form<ChangePasswordForm>,
+    language: UserLanguage,
+    session_id: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session_id).await;
+    if let Some(session) = &request.session {
+        // Verify the new password meets the requirements before we do any lookups
+        match update_password(&session.account, session.session_id, form).await {
+            Ok(_) => Ok(Template::render(
+                "change_password",
+                ChangePasswordContext {
+                    request,
+                    error_message: None,
+                    success_message: Some("change-password-success".to_string()),
+                },
+            )),
+            Err(message) => Ok(Template::render(
+                "change_password",
+                ChangePasswordContext {
+                    request,
+                    error_message: Some(message.to_string()),
+                    success_message: None,
+                },
+            )),
+        }
+    } else {
+        Err(Failure::redirect_to_signin(Some(
+            &request.current_path_and_query,
+        )))
+    }
+}
+
 #[derive(Debug)]
 pub struct SessionId(pub Uuid);
 
@@ -169,12 +301,16 @@ impl SessionId {
     pub async fn validate(&self) -> Result<SessionData, sqlx::Error> {
         let account = Account::find_by_session_id(self.0, database::pool()).await?;
 
-        Ok(SessionData { account })
+        Ok(SessionData {
+            session_id: self.0,
+            account,
+        })
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionData {
+    pub session_id: Uuid,
     pub account: Account,
 }
 

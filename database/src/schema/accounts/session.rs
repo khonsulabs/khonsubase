@@ -26,4 +26,20 @@ impl Session {
             expire_at
         ).fetch_one(executor).await
     }
+
+    pub async fn invalidate_all_except_for<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        account_id: i64,
+        session_id: Uuid,
+        executor: E,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "DELETE FROM sessions WHERE account_id = $1 AND id <> $2",
+            account_id,
+            session_id
+        )
+        .execute(executor)
+        .await?;
+
+        Ok(())
+    }
 }
