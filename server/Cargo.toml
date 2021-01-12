@@ -27,3 +27,4 @@ time-01 = { package = "time", version = "0.1" }
 time-02 = { package = "time", version = "0.2" }
 comrak = "0.9"
 identicon-rs = "2"
+percent-encoding = "2"

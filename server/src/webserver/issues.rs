@@ -65,7 +65,7 @@ async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Templ
     ))
 }
 
-#[get("/issues/<issue_id>")]
+#[get("/issue/<issue_id>")]
 pub async fn view_issue(
     language: UserLanguage,
     path: FullPathAndQuery,
@@ -93,7 +93,7 @@ pub async fn new_issue(
     session: Option<SessionId>,
     summary: Option<String>,
     description: Option<String>,
-) -> Result<Template, Redirect> {
+) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     if request.logged_in() {
         Ok(Template::render(
@@ -108,11 +108,11 @@ pub async fn new_issue(
             },
         ))
     } else {
-        Err(Redirect::to("/signin?origin=/issues/new"))
+        Err(Failure::redirect_to_signin(Some(&request.current_path)))
     }
 }
 
-#[get("/issues/edit/<issue_id>")]
+#[get("/issue/<issue_id>/edit")]
 pub async fn edit_issue(
     language: UserLanguage,
     path: FullPathAndQuery,
@@ -212,7 +212,7 @@ pub async fn save_issue(
         let result = update_issue(&issue_form, session.account.id).await;
 
         match result {
-            Ok(issue_id) => Err(Redirect::to(format!("/issues/{}", issue_id))),
+            Ok(issue_id) => Err(Redirect::to(format!("/issue/{}", issue_id))),
             Err(sql_error) => {
                 error!("error while saving issue: {:?}", sql_error);
 
@@ -220,7 +220,7 @@ pub async fn save_issue(
                     "edit_issue",
                     EditIssueContext {
                         request,
-                        error_message: Some(String::from("issue-error-internal-error")),
+                        error_message: Some(String::from("internal-error-saving")),
                         issue_id: issue_form.issue_id,
                         current_revision_id: issue_form.current_revision_id,
                         summary: Some(issue_form.summary.clone()),

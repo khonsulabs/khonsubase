@@ -467,6 +467,7 @@ dependencies = [
  "migrations",
  "serde",
  "serde_json",
+ "thiserror",
  "uuid",
 ]
 
@@ -2290,6 +2291,7 @@ dependencies = [
  "identicon-rs",
  "include_dir",
  "passwords",
+ "percent-encoding",
  "rocket",
  "rocket_contrib",
  "serde",

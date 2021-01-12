@@ -1,0 +1,31 @@
+{% import "macros" as macros %}
+
+{% extends "base" %}
+{% block title %}
+{{ localize(key = "edit-user-title", user = macros::username(user = user), language = request.language) }} - {{ site_name() }}
+{% endblock title %}
+{% block content %}
+<div class="container">
+    <form accept-charset="utf-8" action="/users/save" method="POST">
+        <input type="hidden" name="user_id" value="{{ user.id }}" />
+
+        <h1 class="">{{ localize(key = "edit-user-title", user = macros::username(user = user), language = request.language) }}</h1>
+
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ localize(key = error_message, language = request.language) }}
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <label for="username">{{ localize(key = "username", language = request.language) }}</label>
+            <input autofocus class="form-control" id="username" name="username" required type="text" value="{{ user.username }}" pattern="[a-zA-Z0-9]{3,64}" title="{{ localize(key = "user-username-format-tip", language = request.language) }}"/>
+        </div>
+        <div class="mb-3">
+            <label for="display-name">{{ localize(key = "user-display-name", language = request.language) }}</label>
+            <input class="form-control" id="display-name" name="displayname" type="text" value="{{ user.display_name }}"/>
+        </div>
+
+        <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "save-user", language = request.language) }}</button>
+    </form>
+</div>
+{% endblock content %}

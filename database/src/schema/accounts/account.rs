@@ -1,8 +1,9 @@
-use crate::sqlx;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use uuid::Uuid;
+
+use crate::sqlx;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Account {
@@ -11,6 +12,18 @@ pub struct Account {
     pub display_name: Option<String>,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccountError {
+    #[error("username too short")]
+    UsernameTooShort,
+    #[error("invalid character '{0}'")]
+    UsernameInvalidCharacter(char),
+    #[error("username already taken")]
+    UsernameConflict,
+    #[error("sql error: {0}")]
+    Sql(#[from] sqlx::Error),
 }
 
 impl Account {
@@ -68,7 +81,8 @@ impl Account {
     pub async fn save(
         &mut self,
         executor: &mut Transaction<'_, sqlx::Postgres>,
-    ) -> sqlx::Result<()> {
+    ) -> Result<(), AccountError> {
+        self.username = Account::clean_username(&self.username)?;
         if self.id == 0 {
             let row = sqlx::query!(
             "INSERT INTO accounts (username, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, created_at",
@@ -92,6 +106,28 @@ impl Account {
 
         Ok(())
     }
+
+    pub fn clean_username(username: &str) -> Result<String, AccountError> {
+        let username = username
+            // Strip leading and trailing whitespace
+            .trim()
+            .chars()
+            // Return an error if any remaining character is not valid
+            .map(|c| {
+                if c.is_ascii_alphanumeric() {
+                    Ok(c.to_ascii_lowercase())
+                } else {
+                    Err(AccountError::UsernameInvalidCharacter(c))
+                }
+            })
+            .collect::<Result<String, AccountError>>()?;
+
+        if username.len() < 3 {
+            return Err(AccountError::UsernameTooShort);
+        }
+
+        Ok(username)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,5 +149,39 @@ impl User {
         )
         .fetch_one(executor)
         .await
+    }
+
+    pub async fn save(
+        &mut self,
+        executor: &mut Transaction<'_, sqlx::Postgres>,
+    ) -> Result<(), AccountError> {
+        self.username = Account::clean_username(&self.username)?;
+        sqlx::query!(
+            "UPDATE accounts SET username = $2, display_name = $3 WHERE id = $1",
+            self.id,
+            &self.username,
+            self.display_name.as_ref(),
+        )
+        .execute(executor)
+        .await
+        .map_err(|sql_error| {
+            match sql_error {
+                sqlx::Error::Database(database_error) => {
+                    // Duplicate key violation check
+                    if database_error
+                        .code()
+                        .map(|c| c == "23505")
+                        .unwrap_or_default()
+                    {
+                        AccountError::UsernameConflict
+                    } else {
+                        AccountError::Sql(sqlx::Error::Database(database_error))
+                    }
+                }
+                other => AccountError::Sql(other),
+            }
+        })?;
+
+        Ok(())
     }
 }

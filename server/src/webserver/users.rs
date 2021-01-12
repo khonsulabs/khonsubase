@@ -5,11 +5,12 @@ use rocket::{
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use database::schema::accounts::User;
+use database::schema::accounts::{AccountError, User};
 
 use crate::webserver::{
-    auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData, ResultExt,
+    auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
 };
+use rocket::{request::Form, response::Redirect};
 
 #[derive(Serialize, Deserialize)]
 struct ViewUserContext {
@@ -54,4 +55,115 @@ pub async fn user_avatar(user_id: i64, size: Option<usize>) -> Result<Content<Ve
     };
     let identicon = identicon.export_jpeg_data().unwrap();
     Ok(Content(ContentType::JPEG, identicon))
+}
+
+#[derive(Serialize, Deserialize)]
+struct EditUserContext {
+    request: RequestData,
+    user: User,
+    error_message: Option<String>,
+}
+
+#[get("/user/<user_id>/edit")]
+pub async fn edit_user(
+    user_id: i64,
+    language: UserLanguage,
+    session: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session).await;
+    if let Some(session) = &request.session {
+        let user = User::load(user_id, database::pool())
+            .await
+            .map_to_failure()?;
+        // TODO permissions: Add admin ability to edit anyone's profile
+        if session.account.id == user_id {
+            Ok(Template::render(
+                "edit_user",
+                EditUserContext {
+                    request,
+                    user,
+                    error_message: None,
+                },
+            ))
+        } else {
+            Err(Failure::Status(Status::Forbidden))
+        }
+    } else {
+        Err(Failure::Redirect(Redirect::to(format!(
+            "/signin?origin=/user/{}/edit",
+            user_id
+        ))))
+    }
+}
+
+#[derive(FromForm, Clone, Debug)]
+pub struct EditUserForm {
+    user_id: i64,
+    username: String,
+    displayname: Option<String>,
+}
+
+async fn update_user(user_form: &Form<EditUserForm>) -> Result<(), AccountError> {
+    let mut tx = database::pool().begin().await?;
+    // It's a little wasteful to do a load here when as of writing this comment
+    // User.save() is hard-coded to an update function. However, if for some reason
+    // User.save was updated to support inserting, we'd want this method to still get a
+    // row not found error. This ensures we can't accidentally break that safety check
+    let mut user = User::load(user_form.user_id, &mut tx).await?;
+    user.username = user_form.username.clone();
+    user.display_name = user_form.displayname.clone();
+    user.save(&mut tx).await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+#[post("/users/save", data = "<user_form>")]
+pub async fn save_user(
+    user_form: Form<EditUserForm>,
+    language: UserLanguage,
+    path: FullPathAndQuery,
+    session: Option<SessionId>,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session).await;
+    if let Some(session) = &request.session {
+        // TODO permissions: allow admins to edit user profiles
+        if session.account.id != user_form.user_id {}
+        let result = update_user(&user_form).await;
+
+        match result {
+            Ok(_) => Err(Failure::redirect(format!("/user/{}", user_form.user_id))),
+            Err(error) => {
+                let error_message = match error {
+                    AccountError::UsernameTooShort | AccountError::UsernameInvalidCharacter(_) => {
+                        "user-error-invalid-username"
+                    }
+                    AccountError::UsernameConflict => "user-error-username-conflict",
+                    AccountError::Sql(sql_error) => {
+                        error!("sql error while saving user: {:?}", sql_error);
+                        "internal-error-saving"
+                    }
+                };
+
+                Ok(Template::render(
+                    "edit_user",
+                    EditUserContext {
+                        request,
+                        error_message: Some(String::from(error_message)),
+                        user: User {
+                            id: user_form.user_id,
+                            username: user_form.username.clone(),
+                            display_name: user_form.displayname.clone(),
+                        },
+                    },
+                ))
+            }
+        }
+    } else {
+        Err(Failure::redirect_to_signin(Some(
+            &request.current_path_and_query,
+        )))
+    }
 }

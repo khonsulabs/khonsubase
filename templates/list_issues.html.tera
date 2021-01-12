@@ -17,7 +17,7 @@
                 {% for issue in response.issues %}
                     <tr class="position-relative">
                         <td>{{ issue.id }}</td>
-                        <td><a href="/issues/{{ issue.id }}" class="stretched-link">{{ issue.summary }}</a></td>
+                        <td><a href="/issue/{{ issue.id }}" class="stretched-link">{{ issue.summary }}</a></td>
                         <td>{{ issue.created_at | date(format=localize(key = "datetime-format", language = request.language)) }}</td>
                     </tr>
                 {% endfor %}

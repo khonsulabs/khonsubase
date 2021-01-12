@@ -4,7 +4,6 @@ use comrak::ComrakOptions;
 use rocket::{
     http::Status,
     request::{FromRequest, Outcome},
-    response,
     response::{Redirect, Responder},
     Request,
 };
@@ -20,6 +19,9 @@ use localization::UserLanguage;
 use crate::configuration::{Configuration, ConfigurationManager, SiteName};
 
 use self::auth::{SessionData, SessionId};
+use percent_encoding::{utf8_percent_encode, AsciiSet};
+use rocket::http::uri::Uri;
+use std::convert::TryInto;
 
 mod articles;
 mod auth;
@@ -69,6 +71,8 @@ fn rocket_server() -> rocket::Rocket {
                 issues::view_issue,
                 issues::list_issues,
                 users::view_user,
+                users::edit_user,
+                users::save_user,
                 users::user_avatar,
             ],
         )
@@ -213,4 +217,26 @@ impl<T> ResultExt<T> for Result<T, sqlx::Error> {
 pub enum Failure {
     Status(Status),
     Redirect(Redirect),
+}
+
+const QUERY: &AsciiSet = &percent_encoding::CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'<')
+    .add(b'>')
+    .add(b'`');
+
+impl Failure {
+    pub fn redirect<U: TryInto<Uri<'static>>>(destination: U) -> Self {
+        Self::Redirect(Redirect::to(destination))
+    }
+
+    pub fn redirect_to_signin(origin: Option<&str>) -> Self {
+        if let Some(origin) = origin {
+            let origin = utf8_percent_encode(origin, QUERY);
+            Self::Redirect(Redirect::to(format!("/signin?origin={}", origin)))
+        } else {
+            Self::Redirect(Redirect::to("/signin"))
+        }
+    }
 }
