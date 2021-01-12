@@ -9,24 +9,28 @@ pub struct IssueRevision {
     pub id: i64,
     pub issue_id: i64,
     pub author_id: i64,
+    pub comment: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
 impl IssueRevision {
-    pub async fn create<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+    pub async fn create<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>, S: ToString>(
         issue_id: i64,
         author_id: i64,
+        comment: Option<S>,
         executor: E,
     ) -> sqlx::Result<Self> {
         sqlx::query_as!(
             Self,
             r#"INSERT INTO issue_revisions (
                 issue_id,
-                author_id
-            ) VALUES ($1, $2) 
-            RETURNING id, issue_id, author_id, created_at"#,
+                author_id,
+                comment
+            ) VALUES ($1, $2, $3) 
+            RETURNING id, issue_id, author_id, comment, created_at"#,
             issue_id,
-            author_id
+            author_id,
+            comment.map(|s| s.to_string()),
         )
         .fetch_one(executor)
         .await
@@ -82,6 +86,7 @@ pub struct IssueRevisionView {
     pub id: i64,
     pub issue_id: i64,
     pub author: User,
+    pub comment: Option<String>,
     pub created_at: DateTime<Utc>,
     pub changes: HashMap<String, IssueRevisionViewChange>,
 }
@@ -102,6 +107,7 @@ impl IssueRevisionView {
                 accounts.id as author_id, 
                 accounts.display_name as author_display_name, 
                 accounts.username as author_username, 
+                issue_revisions.comment,
                 issue_revisions.created_at,
                 issue_revision_changes.property as "property?",
                 issue_revision_changes.old_value,
@@ -134,6 +140,7 @@ impl IssueRevisionView {
                         username: row.author_username,
                         display_name: row.author_display_name
                     },
+                    comment: row.comment,
                     created_at: row.created_at,
                     changes
                 });

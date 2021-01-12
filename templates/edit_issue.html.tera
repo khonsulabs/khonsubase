@@ -37,6 +37,14 @@
                 <div id="description_editor"></div>
             </div>
 
+            {% if issue_id %}
+            <div class="mb-3">
+                <label for="comment">{{ localize(key = "issue-description", language = request.language) }}</label>
+                <input id="comment" name="comment" type="hidden" value="{{ comment }}"/>
+                <div id="comment_editor"></div>
+            </div>
+            {% endif %}
+
             <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "save-issue", language = request.language) }}</button>
         </form>
     </div>
@@ -59,6 +67,19 @@
                     }
                 }
             });
+
+            {% if issue_id %}
+            const commentEditor = new toastui.Editor.factory({
+                el: document.querySelector("#comment_editor"),
+                usageStatistics: false,
+                initialValue: $('#comment').val(),
+                events: {
+                    change: function() {
+                        $('#comment').val(commentEditor.getMarkdown());
+                    }
+                }
+            });
+            {% endif %}
         });
     </script>
 {% endblock afterbody %}

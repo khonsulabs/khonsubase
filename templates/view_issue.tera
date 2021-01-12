@@ -56,6 +56,11 @@
                     </table>
                 {% endif %}
             {% endfor %}
+            {% if entry.comment %}
+                <div class="container">
+                    {{ entry.comment | render_markdown }}
+                </div>
+            {% endif %}
         {% endfor %}
         {% if request.session %}
             <div class="d-flex flex-row-reverse">

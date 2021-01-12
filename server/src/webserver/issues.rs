@@ -78,12 +78,13 @@ pub async fn view_issue(
 
 #[derive(Debug, Serialize, Deserialize)]
 struct EditIssueContext {
-    pub request: RequestData,
-    pub error_message: Option<String>,
-    pub issue_id: Option<i64>,
-    pub current_revision_id: Option<i64>,
-    pub summary: Option<String>,
-    pub description: Option<String>,
+    request: RequestData,
+    error_message: Option<String>,
+    issue_id: Option<i64>,
+    current_revision_id: Option<i64>,
+    summary: Option<String>,
+    description: Option<String>,
+    comment: Option<String>,
 }
 
 #[get("/issues/new?<summary>&<description>")]
@@ -100,11 +101,12 @@ pub async fn new_issue(
             "edit_issue",
             EditIssueContext {
                 request,
+                summary,
+                description,
                 issue_id: None,
                 current_revision_id: None,
                 error_message: None,
-                summary,
-                description,
+                comment: None,
             },
         ))
     } else {
@@ -131,6 +133,7 @@ pub async fn edit_issue(
                 error_message: None,
                 summary: Some(issue.summary),
                 description: issue.description,
+                comment: None,
             },
         ))
     } else {
@@ -146,6 +149,7 @@ pub struct EditIssueForm {
     current_revision_id: Option<i64>,
     summary: String,
     description: Option<String>,
+    comment: Option<String>,
 }
 
 async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx::Result<i64> {
@@ -156,7 +160,8 @@ async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx:
             todo!("Return a proper error and show it to the user.")
         }
 
-        let issue_revision = IssueRevision::create(issue.id, author_id, &mut tx).await?;
+        let issue_revision =
+            IssueRevision::create(issue.id, author_id, issue_form.comment.clone(), &mut tx).await?;
         if issue.summary != issue_form.summary {
             IssueRevisionChange::create(
                 issue_revision.id,
@@ -225,6 +230,7 @@ pub async fn save_issue(
                         current_revision_id: issue_form.current_revision_id,
                         summary: Some(issue_form.summary.clone()),
                         description: issue_form.description.clone(),
+                        comment: issue_form.comment.clone(),
                     },
                 ))
             }
