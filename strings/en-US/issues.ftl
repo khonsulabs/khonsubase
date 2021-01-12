@@ -14,3 +14,6 @@ issue-updated-summmary = Issue updated by {$user} at {$date}
 issue-change-property = Property
 issue-change-old-value = Previous
 issue-change-new-value = Updated
+
+issue-completed = Completed
+issue-new = Ready

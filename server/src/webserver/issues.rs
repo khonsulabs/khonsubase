@@ -1,3 +1,7 @@
+use rocket::{http::Status, request::Form, response::Redirect};
+use rocket_contrib::templates::Template;
+use serde::{Deserialize, Serialize};
+
 use database::{
     schema::issues::{
         Issue, IssueQueryBuilder, IssueQueryResults, IssueRevision, IssueRevisionChange,
@@ -5,13 +9,11 @@ use database::{
     },
     sqlx,
 };
-use rocket::{http::Status, request::Form, response::Redirect};
-use rocket_contrib::templates::Template;
-use serde::{Deserialize, Serialize};
 
 use crate::webserver::{
     auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
 };
+use database::sqlx::types::chrono::Utc;
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -85,6 +87,7 @@ struct EditIssueContext {
     summary: Option<String>,
     description: Option<String>,
     comment: Option<String>,
+    completed: bool,
 }
 
 #[get("/issues/new?<summary>&<description>")]
@@ -107,6 +110,7 @@ pub async fn new_issue(
                 current_revision_id: None,
                 error_message: None,
                 comment: None,
+                completed: false,
             },
         ))
     } else {
@@ -134,6 +138,7 @@ pub async fn edit_issue(
                 summary: Some(issue.summary),
                 description: issue.description,
                 comment: None,
+                completed: issue.completed_at.is_some(),
             },
         ))
     } else {
@@ -150,6 +155,7 @@ pub struct EditIssueForm {
     summary: String,
     description: Option<String>,
     comment: Option<String>,
+    completed: bool,
 }
 
 async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx::Result<i64> {
@@ -160,32 +166,57 @@ async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx:
             todo!("Return a proper error and show it to the user.")
         }
 
-        let issue_revision =
-            IssueRevision::create(issue.id, author_id, issue_form.comment.clone(), &mut tx).await?;
-        if issue.summary != issue_form.summary {
-            IssueRevisionChange::create(
-                issue_revision.id,
-                "summary",
-                Some(issue.summary),
-                Some(issue_form.summary.clone()),
-                &mut tx,
-            )
-            .await?;
-            issue.summary = issue_form.summary.clone();
-        }
+        if issue_form.comment.is_some()
+            || issue.summary != issue_form.summary
+            || issue.description != issue_form.description
+            || issue.completed_at.is_some() != issue_form.completed
+        {
+            let issue_revision =
+                IssueRevision::create(issue.id, author_id, issue_form.comment.clone(), &mut tx)
+                    .await?;
+            if issue.summary != issue_form.summary {
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "summary",
+                    Some(issue.summary),
+                    Some(issue_form.summary.clone()),
+                    &mut tx,
+                )
+                .await?;
+                issue.summary = issue_form.summary.clone();
+            }
 
-        if issue.description != issue_form.description {
-            IssueRevisionChange::create(
-                issue_revision.id,
-                "description",
-                issue.description.clone(),
-                issue_form.description.clone(),
-                &mut tx,
-            )
-            .await?;
-            issue.description = issue_form.description.clone();
+            if issue.description != issue_form.description {
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "description",
+                    issue.description.clone(),
+                    issue_form.description.clone(),
+                    &mut tx,
+                )
+                .await?;
+                issue.description = issue_form.description.clone();
+            }
+
+            if issue_form.completed != issue.completed_at.is_some() {
+                let new_value = if issue_form.completed {
+                    Some(Utc::now())
+                } else {
+                    None
+                };
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "completed_at",
+                    issue.completed_at,
+                    new_value,
+                    &mut tx,
+                )
+                .await?;
+                issue.completed_at = new_value;
+            }
+
+            issue.current_revision_id = Some(issue_revision.id);
         }
-        issue.current_revision_id = Some(issue_revision.id);
         issue.save(&mut tx).await?;
 
         issue_id
@@ -231,6 +262,7 @@ pub async fn save_issue(
                         summary: Some(issue_form.summary.clone()),
                         description: issue_form.description.clone(),
                         comment: issue_form.comment.clone(),
+                        completed: issue_form.completed,
                     },
                 ))
             }
