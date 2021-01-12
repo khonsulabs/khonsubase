@@ -19,6 +19,10 @@
                 display: inline-block;
                 vertical-align: baseline;
             }
+
+            .inline-avatar {
+                height: 1em;
+            }
         </style>
         {% block extrahead %}{% endblock extrahead %}
     </head>
@@ -63,10 +67,10 @@
                     <ul class="navbar-nav">
                         {% if request.session %}
                             <li class="nav-item">
-                                <a class="nav-link" href="/profile">{{ request.session.account.username }}</a>
+                                <a class="nav-link" href="/user/{{ request.session.account.id }}"><img src="/user/{{ request.session.account.id }}/avatar.jpg?size=32" class="inline-avatar"/>{{ request.session.account.username }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn btn-outline-light" href="/signout?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-out", language = request.language) }}</a>
+                                <a class="btn btn-outline-dark" href="/signout?origin={{ request.current_path_and_query | urlencode }}">{{ localize(key = "sign-out", language = request.language) }}</a>
                             </li>
                         {% else %}
                             <li class="nav-item">

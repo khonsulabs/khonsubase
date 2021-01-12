@@ -1,14 +1,17 @@
-use rocket::{request::Form, response::Redirect};
+use database::{
+    schema::issues::{
+        Issue, IssueQueryBuilder, IssueQueryResults, IssueRevision, IssueRevisionChange,
+        IssueRevisionView, IssueView,
+    },
+    sqlx,
+};
+use rocket::{http::Status, request::Form, response::Redirect};
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use database::schema::issues::{
-    Issue, IssueQueryBuilder, IssueQueryResults, IssueRevision, IssueRevisionChange,
-    IssueRevisionView, IssueView,
+use crate::webserver::{
+    auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
 };
-use database::sqlx;
-
-use super::{auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -21,16 +24,18 @@ pub async fn list_issues(
     language: UserLanguage,
     path: FullPathAndQuery,
     session: Option<SessionId>,
-) -> Template {
+) -> Result<Template, Status> {
     let request = RequestData::new(language, path, session).await;
-    match IssueQueryBuilder::new()
+    let response = IssueQueryBuilder::new()
         .open()
         .query(database::pool())
         .await
-    {
-        Ok(response) => Template::render("list_issues", ListIssuesContext { request, response }),
-        Err(sql_error) => todo!("Error executing query: {:?}", sql_error),
-    }
+        .map_sql_to_http()?;
+
+    Ok(Template::render(
+        "list_issues",
+        ListIssuesContext { request, response },
+    ))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -66,12 +71,9 @@ pub async fn view_issue(
     path: FullPathAndQuery,
     session: Option<SessionId>,
     issue_id: i64,
-) -> Template {
+) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
-    match render_issue(request, issue_id).await {
-        Ok(template) => template,
-        Err(err) => todo!("db error: {:?}", err),
-    }
+    render_issue(request, issue_id).await.map_to_failure()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -116,26 +118,25 @@ pub async fn edit_issue(
     path: FullPathAndQuery,
     session: Option<SessionId>,
     issue_id: i64,
-) -> Result<Template, Redirect> {
+) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     if request.logged_in() {
-        match Issue::load(issue_id).await {
-            Ok(issue) => Ok(Template::render(
-                "edit_issue",
-                EditIssueContext {
-                    request,
-                    issue_id: Some(issue_id),
-                    current_revision_id: issue.current_revision_id,
-                    error_message: None,
-                    summary: Some(issue.summary),
-                    description: issue.description,
-                },
-            )),
-            Err(sqlx::Error::RowNotFound) => todo!(),
-            Err(_) => todo!(),
-        }
+        let issue = Issue::load(issue_id).await.map_to_failure()?;
+        Ok(Template::render(
+            "edit_issue",
+            EditIssueContext {
+                request,
+                issue_id: Some(issue_id),
+                current_revision_id: issue.current_revision_id,
+                error_message: None,
+                summary: Some(issue.summary),
+                description: issue.description,
+            },
+        ))
     } else {
-        Err(Redirect::to("/signin?origin=/issues/new"))
+        Err(Failure::Redirect(Redirect::to(
+            "/signin?origin=/issues/new",
+        )))
     }
 }
 

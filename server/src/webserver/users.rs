@@ -1,6 +1,39 @@
+use rocket::{
+    http::{ContentType, Status},
+    response::content::Content,
+};
+use rocket_contrib::templates::Template;
+use serde::{Deserialize, Serialize};
+
 use database::schema::accounts::User;
-use rocket::http::{ContentType, Status};
-use rocket::response::content::Content;
+
+use crate::webserver::{
+    auth::SessionId, localization::UserLanguage, FullPathAndQuery, RequestData, ResultExt,
+};
+
+#[derive(Serialize, Deserialize)]
+struct ViewUserContext {
+    request: RequestData,
+    user: User,
+}
+
+#[get("/user/<user_id>")]
+pub async fn view_user(
+    user_id: i64,
+    language: UserLanguage,
+    session: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Status> {
+    let request = RequestData::new(language, path, session).await;
+    let user = User::load(user_id, database::pool())
+        .await
+        .map_sql_to_http()?;
+
+    Ok(Template::render(
+        "view_user",
+        ViewUserContext { request, user },
+    ))
+}
 
 #[get("/user/<user_id>/avatar.jpg?<size>")]
 pub async fn user_avatar(user_id: i64, size: Option<usize>) -> Result<Content<Vec<u8>>, Status> {

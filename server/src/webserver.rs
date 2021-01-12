@@ -1,26 +1,31 @@
+use std::{collections::HashMap, env, marker::PhantomData, path::PathBuf};
+
+use comrak::ComrakOptions;
+use rocket::{
+    http::Status,
+    request::{FromRequest, Outcome},
+    response,
+    response::{Redirect, Responder},
+    Request,
+};
+use rocket_contrib::{
+    serve::StaticFiles,
+    templates::{tera, tera::Value, Template},
+};
+use serde::{Deserialize, Serialize};
+
+use database::sqlx;
+use localization::UserLanguage;
+
+use crate::configuration::{Configuration, ConfigurationManager, SiteName};
+
+use self::auth::{SessionData, SessionId};
+
 mod articles;
 mod auth;
 mod issues;
 mod localization;
 mod users;
-
-use self::auth::{SessionData, SessionId};
-
-use crate::configuration::{Configuration, ConfigurationManager, SiteName};
-use comrak::ComrakOptions;
-use localization::UserLanguage;
-use rocket::{
-    request::{FromRequest, Outcome},
-    Request,
-};
-use rocket_contrib::templates::tera::Value;
-use rocket_contrib::{
-    serve::StaticFiles,
-    templates::{tera, Template},
-};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::{env, marker::PhantomData, path::PathBuf};
 
 fn rocket_server() -> rocket::Rocket {
     let root_path = if let Ok(value) = env::var("CARGO_MANIFEST_DIR") {
@@ -32,7 +37,7 @@ fn rocket_server() -> rocket::Rocket {
 
     env::set_var(
         "ROCKET_TEMPLATE_DIR",
-        dbg!(root_path.join("templates").to_str().unwrap()),
+        root_path.join("templates").to_str().unwrap(),
     );
 
     rocket::ignite()
@@ -63,6 +68,7 @@ fn rocket_server() -> rocket::Rocket {
                 issues::edit_issue,
                 issues::view_issue,
                 issues::list_issues,
+                users::view_user,
                 users::user_avatar,
             ],
         )
@@ -177,4 +183,34 @@ impl tera::Filter for MarkdownFilter {
     fn is_safe(&self) -> bool {
         true
     }
+}
+
+trait ResultExt<T> {
+    fn map_sql_to_http(self) -> Result<T, Status>;
+
+    fn map_to_failure(self) -> Result<T, Failure>
+    where
+        Self: Sized,
+    {
+        self.map_sql_to_http().map_err(Failure::Status)
+    }
+}
+
+impl<T> ResultExt<T> for Result<T, sqlx::Error> {
+    fn map_sql_to_http(self) -> Result<T, Status> {
+        self.map_err(|err| match err {
+            sqlx::Error::RowNotFound => Status::NotFound,
+            other_error => {
+                error!("unexpected sql error: {:?}", other_error);
+                Status::InternalServerError
+            }
+        })
+    }
+}
+
+#[derive(Responder)]
+#[allow(clippy::large_enum_variant)]
+pub enum Failure {
+    Status(Status),
+    Redirect(Redirect),
 }

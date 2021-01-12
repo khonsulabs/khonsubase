@@ -1,3 +1,5 @@
 {% macro render_user(user) %}
-<a href="/user/{{ user.id }}"><img src="/user/{{ user.id }}/avatar.jpg?size=32" class="h-auto" /> {% if user.display_name %}{{ user.display_name }}{% else %}{{ user.username }}{% endif %}</a>
+<a href="/user/{{ user.id }}"><img src="/user/{{ user.id }}/avatar.jpg?size=32" class="inline-avatar" /> {% if user.display_name %}{{ user.display_name }}{% else %}{{ user.username }}{% endif %}</a>
 {% endmacro render_user %}
+
+{% macro username(user) %}{% if user.display_name %}{{ user.display_name }} (@{{ user.username }}){% else %}@{{ user.username }}{% endif %}{% endmacro username %}

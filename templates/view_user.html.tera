@@ -1,0 +1,26 @@
+{% import "macros" as macros %}
+
+{% extends "base" %}
+{% block title %}
+{{ macros::username(user = user) }} - {{ site_name() }}
+{% endblock title %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="p-2 flex-grow-1">{{ macros::username(user = user) }}</h1>
+        {% if request.session and request.session.account.id == user.id %}
+        <div class="p-2">
+            <a class="btn btn-primary" role="button" href="/user/edit/{{ user.id }}">{{ localize(key =
+                "user-edit-button", language = request.language) }}</a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if request.session and request.session.account.id == user.id %}
+    <div class="p-2">
+        <a class="btn btn-primary" role="button" href="/user/edit/{{ user.id }}">{{ localize(key = "user-edit-button",
+            language = request.language) }}</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock content %}
