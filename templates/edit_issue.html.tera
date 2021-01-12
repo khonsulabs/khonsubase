@@ -39,7 +39,7 @@
 
             {% if issue_id %}
             <div class="mb-3">
-                <label for="comment">{{ localize(key = "issue-description", language = request.language) }}</label>
+                <label for="comment">{{ localize(key = "issue-revision-comment", language = request.language) }}</label>
                 <input id="comment" name="comment" type="hidden" value="{{ comment }}"/>
                 <div id="comment_editor"></div>
             </div>
@@ -58,7 +58,9 @@
     <script type="text/javascript">
         $(function () {
             const descriptionEditor = new toastui.Editor.factory({
-                el: document.querySelector("#description_editor"), 
+                el: document.querySelector("#description_editor"),
+                previewStyle: 'vertical',
+                previewHighlight: true,
                 usageStatistics: false,
                 initialValue: $('#description').val(),
                 events: {
@@ -71,6 +73,8 @@
             {% if issue_id %}
             const commentEditor = new toastui.Editor.factory({
                 el: document.querySelector("#comment_editor"),
+                previewStyle: 'vertical',
+                previewHighlight: true,
                 usageStatistics: false,
                 initialValue: $('#comment').val(),
                 events: {

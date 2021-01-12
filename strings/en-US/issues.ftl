@@ -6,6 +6,7 @@ issue-created-at = Created At
 issue-authored-by = Added By
 issue-timeline = Issue Timeline
 issue-edit-button = Update
+issue-revision-comment = Comment
 edit-issue = Edit #{$issue_id}
 save-issue = Save Issue
 view-issue = Issue #{$issue_id}
