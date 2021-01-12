@@ -100,3 +100,18 @@ pub struct User {
     pub username: String,
     pub display_name: Option<String>,
 }
+
+impl User {
+    pub async fn load<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        id: i64,
+        executor: E,
+    ) -> sqlx::Result<User> {
+        sqlx::query_as!(
+            User,
+            "SELECT id, username, display_name FROM accounts WHERE id = $1",
+            id
+        )
+        .fetch_one(executor)
+        .await
+    }
+}

@@ -2,6 +2,7 @@ mod articles;
 mod auth;
 mod issues;
 mod localization;
+mod users;
 
 use self::auth::{SessionData, SessionId};
 
@@ -62,6 +63,7 @@ fn rocket_server() -> rocket::Rocket {
                 issues::edit_issue,
                 issues::view_issue,
                 issues::list_issues,
+                users::user_avatar,
             ],
         )
         .mount("/static", StaticFiles::from(root_path.join("static")))
