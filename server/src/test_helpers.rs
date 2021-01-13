@@ -11,7 +11,7 @@ pub const TEST_ACCOUNT_PASSWORD: &str = "testpassword";
 pub async fn setup_test_account(
     transaction: &mut Transaction<'_, Postgres>,
 ) -> anyhow::Result<(Account, Session)> {
-    let mut account = Account::new(TEST_ACCOUNT_USERNAME, TEST_ACCOUNT_PASSWORD)?;
+    let mut account = Account::new(TEST_ACCOUNT_USERNAME, TEST_ACCOUNT_PASSWORD, false)?;
     account.save(transaction).await?;
 
     let session = Session::new(&account, None, transaction).await?;
