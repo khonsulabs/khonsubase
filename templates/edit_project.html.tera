@@ -1,0 +1,68 @@
+{% extends "base" %}
+{% block title %}
+    {% if project.id %}
+        {{ localize(key = "edit-project", language = request.language) }} - {{ project.name }} - {{ site_name() }}
+    {% else %}
+        {{ localize(key = "new-project", language = request.language) }} - {{ site_name() }}
+    {% endif %}
+{% endblock title %}
+{% block content %}
+    <div class="container">
+        <form accept-charset="utf-8" action="/projects/save" method="POST">
+            <input type="hidden" name="project_id" value="{{ project.id }}" />
+
+            <h1 class="mb-3 fw-normal">
+                {% if project.id %}
+                    {{ localize(key = "edit-project", language = request.language) }}
+                {% else %}
+                    {{ localize(key = "new-project", language = request.language) }}
+                {% endif %}
+            </h1>
+            {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ localize(key = error_message, language = request.language) }}
+                </div>
+            {% endif %}
+            <div class="mb-3">
+                <label for="slug">{{ localize(key = "project-slug", language = request.language) }}</label>
+                <input autofocus class="form-control" id="slug" name="slug" placeholder="{{ localize(key = "project-slug", language = request.language) }}" required type="text" value="{{ project.slug }}" pattern="[a-z\\-]+" />
+            </div>
+
+            <div class="mb-3">
+                <label for="name">{{ localize(key = "project-name", language = request.language) }}</label>
+                <input autofocus class="form-control" id="name" name="name" placeholder="{{ localize(key = "project-name", language = request.language) }}" required type="text" value="{{ project.name }}"/>
+            </div>
+
+            <div class="mb-3">
+                <label for="description">{{ localize(key = "project-description", language = request.language) }}</label>
+                <input id="description" name="description" type="hidden" value="{{ project.description }}"/>
+                <div id="description_editor"></div>
+            </div>
+
+            <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "save-project", language = request.language) }}</button>
+        </form>
+    </div>
+{% endblock content %}
+{% block extrahead %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet"/>
+    <link href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" rel="stylesheet"/>
+{% endblock extrahead %}
+{% block afterbody %}
+    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            const descriptionEditor = new toastui.Editor.factory({
+                el: document.querySelector("#description_editor"),
+                previewStyle: 'vertical',
+                previewHighlight: true,
+                usageStatistics: false,
+                initialValue: document.querySelector('#description').value,
+                events: {
+                    change: function() {
+                        document.querySelector('#description').value = descriptionEditor.getMarkdown();
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock afterbody %}

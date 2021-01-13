@@ -6,7 +6,7 @@ pub async fn run() -> anyhow::Result<()> {
             .exclude_similar_characters(true)
             .generate_one()
             .unwrap();
-        let mut account = Account::new(String::from("admin"), &password)?;
+        let mut account = Account::new(String::from("admin"), &password, true)?;
         let mut tx = database::pool().begin().await?;
         account.save(&mut tx).await?;
         tx.commit().await?;

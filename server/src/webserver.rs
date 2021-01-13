@@ -27,6 +27,7 @@ mod articles;
 mod auth;
 mod issues;
 mod localization;
+mod projects;
 mod users;
 
 fn rocket_server() -> rocket::Rocket {
@@ -76,6 +77,10 @@ fn rocket_server() -> rocket::Rocket {
                 users::edit_user,
                 users::save_user,
                 users::user_avatar,
+                projects::new_project,
+                projects::view_project,
+                projects::edit_project,
+                projects::save_project,
             ],
         )
         .mount("/static", StaticFiles::from(root_path.join("static")))
@@ -221,6 +226,15 @@ pub enum Failure {
     Redirect(Redirect),
 }
 
+impl<E> From<E> for Failure
+where
+    E: std::error::Error,
+{
+    fn from(_: E) -> Self {
+        unimplemented!()
+    }
+}
+
 const QUERY: &AsciiSet = &percent_encoding::CONTROLS
     .add(b' ')
     .add(b'"')
@@ -240,5 +254,13 @@ impl Failure {
         } else {
             Self::Redirect(Redirect::to("/signin"))
         }
+    }
+
+    pub fn not_found() -> Self {
+        Self::Status(Status::NotFound)
+    }
+
+    pub fn forbidden() -> Self {
+        Self::Status(Status::Forbidden)
     }
 }

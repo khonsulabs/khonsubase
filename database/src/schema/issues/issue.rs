@@ -9,6 +9,7 @@ pub struct IssueView {
     pub author: User,
     pub summary: String,
     pub description: Option<String>,
+    pub project_id: Option<i64>,
     pub parent_id: Option<i64>,
     pub current_revision_id: Option<i64>,
     pub created_at: DateTime<Utc>,
@@ -24,7 +25,8 @@ impl IssueView {
                 accounts.display_name as author_display_name, 
                 accounts.username as author_username, 
                 summary, 
-                description, 
+                description,
+                project_id,
                 parent_id, 
                 current_revision_id, 
                 issues.created_at, 
@@ -46,6 +48,7 @@ impl IssueView {
             },
             summary: row.summary,
             description: row.description,
+            project_id: row.project_id,
             parent_id: row.parent_id,
             current_revision_id: row.current_revision_id,
             created_at: row.created_at,
@@ -60,6 +63,7 @@ pub struct Issue {
     pub author_id: i64,
     pub summary: String,
     pub description: Option<String>,
+    pub project_id: Option<i64>,
     pub parent_id: Option<i64>,
     pub current_revision_id: Option<i64>,
     pub created_at: DateTime<Utc>,
@@ -72,6 +76,7 @@ impl Issue {
         summary: String,
         description: Option<String>,
         parent_id: Option<i64>,
+        project_id: Option<i64>,
     ) -> Self {
         Self {
             author_id,
@@ -79,6 +84,7 @@ impl Issue {
             description,
             parent_id,
             id: 0,
+            project_id,
             current_revision_id: None,
             created_at: Utc::now(),
             completed_at: None,
@@ -86,14 +92,14 @@ impl Issue {
     }
 
     pub async fn load(issue_id: i64) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
     }
 
     pub async fn load_for_update(
         issue_id: i64,
         transaction: &mut Transaction<'_, sqlx::Postgres>,
     ) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
     }
 
     pub async fn save<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
@@ -104,13 +110,15 @@ impl Issue {
             let row = sqlx::query!(
                 r#"INSERT INTO issues (
                     author_id, 
+                    project_id,
                     summary, 
                     description, 
                     parent_id,
                     current_revision_id,
                     completed_at
-                   ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at"#,
+                   ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at"#,
                 self.author_id,
+                self.project_id,
                 &self.summary,
                 self.description.as_ref(),
                 self.parent_id,
@@ -128,13 +136,15 @@ impl Issue {
                     author_id = $1,
                     summary = $2,
                     description = $3,
-                    parent_id = $4,
-                    current_revision_id = $5,
-                    completed_at = $6
-                   WHERE id = $7"#,
+                    project_id = $4,
+                    parent_id = $5,
+                    current_revision_id = $6,
+                    completed_at = $7
+                   WHERE id = $8"#,
                 self.author_id,
                 &self.summary,
                 self.description.as_ref(),
+                self.project_id,
                 self.parent_id,
                 self.current_revision_id,
                 self.completed_at,
@@ -262,6 +272,7 @@ impl IssueQueryBuilder {
                 author_id, 
                 summary, 
                 description, 
+                project_id,
                 parent_id, 
                 current_revision_id,
                 created_at, 
@@ -284,6 +295,7 @@ impl IssueQueryBuilder {
                         author_id: row.get("author_id"),
                         summary: row.get("summary"),
                         description: row.get("description"),
+                        project_id: row.get("project_id"),
                         parent_id: row.get("parent_id"),
                         current_revision_id: row.get("current_revision_id"),
                         created_at: row.get("created_at"),

@@ -3,12 +3,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use uuid::Uuid;
 
-use crate::sqlx;
+use crate::{sqlx, DatabaseError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub id: i64,
     pub username: String,
+    pub administrator: bool,
     pub display_name: Option<String>,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
@@ -27,10 +28,15 @@ pub enum AccountError {
 }
 
 impl Account {
-    pub fn new<S: ToString>(username: S, password: &str) -> anyhow::Result<Account> {
+    pub fn new<S: ToString>(
+        username: S,
+        password: &str,
+        administrator: bool,
+    ) -> anyhow::Result<Account> {
         let mut account = Self {
             id: 0,
             username: username.to_string(),
+            administrator,
             password_hash: Default::default(),
             display_name: None,
             created_at: Utc::now(),
@@ -56,28 +62,28 @@ impl Account {
         id: i64,
         executor: E,
     ) -> sqlx::Result<Account> {
-        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = $1", id).fetch_one(executor).await
+        sqlx::query_as!(Self, "SELECT id, username, administrator, password_hash, display_name, created_at FROM accounts WHERE id = $1", id).fetch_one(executor).await
     }
 
     pub async fn load_for_update<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
         id: i64,
         executor: E,
     ) -> sqlx::Result<Account> {
-        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = $1 FOR UPDATE", id).fetch_one(executor).await
+        sqlx::query_as!(Self, "SELECT id, username, administrator, password_hash, display_name, created_at FROM accounts WHERE id = $1 FOR UPDATE", id).fetch_one(executor).await
     }
 
     pub async fn find_by_username<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
         username: &str,
         executor: E,
     ) -> sqlx::Result<Account> {
-        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE username = $1", username).fetch_one(executor).await
+        sqlx::query_as!(Self, "SELECT id, username, administrator, password_hash, display_name, created_at FROM accounts WHERE username = $1", username).fetch_one(executor).await
     }
 
     pub async fn find_by_session_id<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
         session_id: Uuid,
         executor: E,
     ) -> sqlx::Result<Account> {
-        sqlx::query_as!(Account, "SELECT id, username, password_hash, display_name, created_at FROM accounts WHERE id = validate_session($1)", session_id)
+        sqlx::query_as!(Self, "SELECT id, username, administrator, password_hash, display_name, created_at FROM accounts WHERE id = validate_session($1)", session_id)
             .fetch_one(executor)
             .await
     }
@@ -99,10 +105,11 @@ impl Account {
         self.username = Account::clean_username(&self.username)?;
         if self.id == 0 {
             let row = sqlx::query!(
-            "INSERT INTO accounts (username, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, created_at",
+            "INSERT INTO accounts (username, password_hash, display_name, administrator) VALUES ($1, $2, $3, $4) RETURNING id, created_at",
             &self.username,
             &self.password_hash,
             self.display_name.as_ref(),
+            self.administrator,
         )
         .fetch_one(executor)
         .await?;
@@ -110,11 +117,12 @@ impl Account {
             self.created_at = row.created_at;
         } else {
             sqlx::query!(
-                "UPDATE accounts SET username = $2, password_hash = $3, display_name = $4 WHERE id = $1", 
+                "UPDATE accounts SET username = $2, password_hash = $3, display_name = $4, administrator = $5 WHERE id = $1", 
                 self.id,
                 &self.username,
                 &self.password_hash,
                 self.display_name.as_ref(),
+                self.administrator,
             ).execute(executor).await?;
         }
 
@@ -178,22 +186,10 @@ impl User {
         )
         .execute(executor)
         .await
-        .map_err(|sql_error| {
-            match sql_error {
-                sqlx::Error::Database(database_error) => {
-                    // Duplicate key violation check
-                    if database_error
-                        .code()
-                        .map(|c| c == "23505")
-                        .unwrap_or_default()
-                    {
-                        AccountError::UsernameConflict
-                    } else {
-                        AccountError::Sql(sqlx::Error::Database(database_error))
-                    }
-                }
-                other => AccountError::Sql(other),
-            }
+        .map_err(|sql_error| match DatabaseError::from(sql_error) {
+            DatabaseError::Conflict => AccountError::UsernameConflict,
+            DatabaseError::Other(sql) => AccountError::Sql(sql),
+            _ => unreachable!(),
         })?;
 
         Ok(())

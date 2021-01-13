@@ -13,7 +13,7 @@ use database::{
 use crate::webserver::{
     auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
 };
-use database::sqlx::types::chrono::Utc;
+use database::{schema::issues::Project, sqlx::types::chrono::Utc};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -88,6 +88,9 @@ struct EditIssueContext {
     description: Option<String>,
     comment: Option<String>,
     completed: bool,
+    project_id: Option<i64>,
+
+    projects: Vec<Project>,
 }
 
 #[get("/issues/new?<summary>&<description>")]
@@ -99,6 +102,7 @@ pub async fn new_issue(
     description: Option<String>,
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
+    let projects = Project::list().await?;
     if request.logged_in() {
         Ok(Template::render(
             "edit_issue",
@@ -111,6 +115,8 @@ pub async fn new_issue(
                 error_message: None,
                 comment: None,
                 completed: false,
+                project_id: None,
+                projects,
             },
         ))
     } else {
@@ -128,6 +134,7 @@ pub async fn edit_issue(
     let request = RequestData::new(language, path, session).await;
     if request.logged_in() {
         let issue = Issue::load(issue_id).await.map_to_failure()?;
+        let projects = Project::list().await?;
         Ok(Template::render(
             "edit_issue",
             EditIssueContext {
@@ -139,6 +146,8 @@ pub async fn edit_issue(
                 description: issue.description,
                 comment: None,
                 completed: issue.completed_at.is_some(),
+                project_id: issue.project_id,
+                projects,
             },
         ))
     } else {
@@ -156,6 +165,7 @@ pub struct EditIssueForm {
     description: Option<String>,
     comment: Option<String>,
     completed: bool,
+    project_id: Option<i64>,
 }
 
 async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx::Result<i64> {
@@ -215,6 +225,18 @@ async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx:
                 issue.completed_at = new_value;
             }
 
+            if issue_form.project_id != issue.project_id {
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "project_id",
+                    issue.project_id,
+                    issue_form.project_id,
+                    &mut tx,
+                )
+                .await?;
+                issue.project_id = issue_form.project_id;
+            }
+
             issue.current_revision_id = Some(issue_revision.id);
         }
         issue.save(&mut tx).await?;
@@ -226,6 +248,7 @@ async fn update_issue(issue_form: &Form<EditIssueForm>, author_id: i64) -> sqlx:
             issue_form.summary.clone(),
             issue_form.description.clone(),
             None,
+            issue_form.project_id,
         );
         issue.save(&mut tx).await?;
         issue.id
@@ -242,15 +265,16 @@ pub async fn save_issue(
     language: UserLanguage,
     path: FullPathAndQuery,
     session: Option<SessionId>,
-) -> Result<Template, Redirect> {
+) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     if let Some(session) = &request.session {
         let result = update_issue(&issue_form, session.account.id).await;
 
         match result {
-            Ok(issue_id) => Err(Redirect::to(format!("/issue/{}", issue_id))),
+            Ok(issue_id) => Err(Failure::redirect(format!("/issue/{}", issue_id))),
             Err(sql_error) => {
                 error!("error while saving issue: {:?}", sql_error);
+                let projects = Project::list().await?;
 
                 Ok(Template::render(
                     "edit_issue",
@@ -263,11 +287,13 @@ pub async fn save_issue(
                         description: issue_form.description.clone(),
                         comment: issue_form.comment.clone(),
                         completed: issue_form.completed,
+                        project_id: issue_form.project_id,
+                        projects,
                     },
                 ))
             }
         }
     } else {
-        Err(Redirect::to("/signin?origin=/issues/new"))
+        Err(Failure::redirect("/signin?origin=/issues/new"))
     }
 }
