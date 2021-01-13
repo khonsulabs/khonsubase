@@ -64,7 +64,7 @@
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
                        data-bs-toggle="dropdown" aria-expanded="false">
                         <img src="/user/{{ request.session.account.id }}/avatar.jpg?size=32" class="inline-avatar"/>{{
-                        request.session.account.display_name | default(default=request.session.account.username) }}
+                        request.session.account.display_name | default(value=request.session.account.username) }}
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="/user/{{ request.session.account.id }}">{{ localize(key = "view-profile", language = request.language) }}</a></li>
