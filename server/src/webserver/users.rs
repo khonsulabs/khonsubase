@@ -112,7 +112,11 @@ async fn update_user(user_form: &Form<EditUserForm>) -> Result<(), AccountError>
     // row not found error. This ensures we can't accidentally break that safety check
     let mut user = User::load(user_form.user_id, &mut tx).await?;
     user.username = user_form.username.clone();
-    user.display_name = user_form.displayname.clone();
+    user.display_name = user_form
+        .displayname
+        .clone()
+        .map(|name| if name.is_empty() { None } else { Some(name) })
+        .flatten();
     user.save(&mut tx).await?;
 
     tx.commit().await?;
