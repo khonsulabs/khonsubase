@@ -61,16 +61,16 @@
 {% block afterbody %}
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
     <script type="text/javascript">
-        $(function () {
+        document.addEventListener('DOMContentLoaded', function () {
             const descriptionEditor = new toastui.Editor.factory({
                 el: document.querySelector("#description_editor"),
                 previewStyle: 'vertical',
                 previewHighlight: true,
                 usageStatistics: false,
-                initialValue: $('#description').val(),
+                initialValue: document.querySelector('#description').value,
                 events: {
                     change: function() {
-                        $('#description').val(descriptionEditor.getMarkdown());
+                        document.querySelector('#description').value = descriptionEditor.getMarkdown();
                     }
                 }
             });
@@ -81,10 +81,10 @@
                 previewStyle: 'vertical',
                 previewHighlight: true,
                 usageStatistics: false,
-                initialValue: $('#comment').val(),
+                initialValue: document.querySelector('#comment').value,
                 events: {
                     change: function() {
-                        $('#comment').val(commentEditor.getMarkdown());
+                        document.querySelector('#comment').value = commentEditor.getMarkdown();
                     }
                 }
             });
