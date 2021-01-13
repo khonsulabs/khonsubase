@@ -76,8 +76,7 @@ pub async fn edit_user(
         let user = User::load(user_id, database::pool())
             .await
             .map_to_failure()?;
-        // TODO permissions: Add admin ability to edit anyone's profile
-        if session.account.id == user_id {
+        if session.account.administrator || session.account.id == user_id {
             Ok(Template::render(
                 "edit_user",
                 EditUserContext {
@@ -133,8 +132,10 @@ pub async fn save_user(
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     if let Some(session) = &request.session {
-        // TODO permissions: allow admins to edit user profiles
-        if session.account.id != user_form.user_id {}
+        if !(session.account.administrator || session.account.id == user_form.user_id) {
+            return Err(Failure::forbidden());
+        }
+
         let result = update_user(&user_form).await;
 
         match result {
