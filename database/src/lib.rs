@@ -1,4 +1,3 @@
-use crate::sqlx::Error;
 pub use ::migrations::{
     initialize, migrations, pool,
     sqlx::{self, database::HasStatement, Database, Execute, Executor},
@@ -43,6 +42,6 @@ pub trait SqlxResultExt<T> {
 
 impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
     fn map_database_error(self) -> Result<T, DatabaseError> {
-        self.map_err(|e| DatabaseError::from(e))
+        self.map_err(DatabaseError::from)
     }
 }

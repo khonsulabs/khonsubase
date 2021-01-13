@@ -79,6 +79,7 @@ fn rocket_server() -> rocket::Rocket {
                 users::user_avatar,
                 projects::new_project,
                 projects::view_project,
+                projects::view_project_by_slug,
                 projects::edit_project,
                 projects::save_project,
             ],

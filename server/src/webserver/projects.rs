@@ -1,23 +1,21 @@
-use rocket::{
-    http::Status,
-    request::Form,
-    response::{content::Content, Redirect},
-};
+use rocket::{http::Status, request::Form};
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use database::schema::issues::{Project, ProjectError};
+use database::schema::issues::{IssueQueryBuilder, IssueQueryResults, Project, ProjectError};
 
 use crate::webserver::{
     auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
 };
 use database::sqlx::types::chrono::Utc;
 
-// #[derive(Serialize, Deserialize)]
-// struct ViewUserContext {
-//     request: RequestData,
-//     user: User,
-// }
+#[derive(Serialize, Deserialize)]
+struct ViewProjectContext {
+    request: RequestData,
+    project: Project,
+    editable: bool,
+    response: IssueQueryResults,
+}
 
 #[get("/project/<project_id>")]
 pub async fn view_project(
@@ -25,8 +23,53 @@ pub async fn view_project(
     language: UserLanguage,
     session: Option<SessionId>,
     path: FullPathAndQuery,
-) -> Result<Template, Status> {
-    todo!()
+) -> Result<Template, Failure> {
+    let project = Project::load(project_id).await?;
+
+    render_project(project, language, session, path).await
+}
+
+#[get("/project/<slug>", rank = 2)]
+pub async fn view_project_by_slug(
+    slug: String,
+    language: UserLanguage,
+    session: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Failure> {
+    let project = Project::find_by_slug(&slug).await?;
+
+    render_project(project, language, session, path).await
+}
+
+async fn render_project(
+    project: Project,
+    language: UserLanguage,
+    session: Option<SessionId>,
+    path: FullPathAndQuery,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session).await;
+    let response = IssueQueryBuilder::new()
+        .open()
+        .project(Some(project.id))
+        .query(database::pool())
+        .await
+        .map_to_failure()?;
+
+    let editable = request
+        .session
+        .as_ref()
+        .map(|s| s.account.administrator || s.account.id == project.owner_id)
+        .unwrap_or_default();
+
+    Ok(Template::render(
+        "view_project",
+        ViewProjectContext {
+            request,
+            project,
+            editable,
+            response,
+        },
+    ))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -149,7 +192,7 @@ pub async fn save_project(
             let result = update_project(&project_form, session.account.id).await;
 
             match result {
-                Ok(project) => Err(Failure::redirect(format!("/project/{}", project.id))),
+                Ok(project) => Err(Failure::redirect(project.permalink())),
                 Err(error) => {
                     let error_message = match error {
                         ProjectError::SlugInvalidCharacter(_) => "project-error-invalid-username",
@@ -185,7 +228,7 @@ pub async fn save_project(
         let origin = if project_form.project_id == 0 {
             "/projects/new".to_string()
         } else {
-            format!("/project/{}", project_form.project_id)
+            format!("/project/{}/edit", project_form.project_id)
         };
         Err(Failure::redirect_to_signin(Some(&origin)))
     }

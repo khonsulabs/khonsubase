@@ -4,7 +4,9 @@
 {% endblock title %}
 {% block content %}
     <div class="container">
+        {% block issues_heading %}
         <h1>{{ localize(key = "issues", language = request.language) }}</h1>
+        {% endblock issues_heading %}
         <table class="table table-hover table-striped">
             <thead>
                 <tr>

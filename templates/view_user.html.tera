@@ -8,7 +8,7 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center">
         <h1 class="p-2 flex-grow-1">{{ macros::username(user = user) }}</h1>
-        {% if request.session and (request.session.administrator or request.session.account.id == user.id) %}
+        {% if editable %}
         <div class="p-2">
             <a class="btn btn-primary" role="button" href="/user/{{ user.id }}/edit">{{ localize(key =
                 "user-edit-button", language = request.language) }}</a>
@@ -16,7 +16,7 @@
         {% endif %}
     </div>
 
-    {% if request.session and (request.session.administrator or request.session.account.id == user.id) %}
+    {% if editable %}
     <div class="p-2">
         <a class="btn btn-primary" role="button" href="/user/{{ user.id }}/edit">{{ localize(key = "user-edit-button",
             language = request.language) }}</a>

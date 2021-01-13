@@ -11,7 +11,7 @@ pub fn migrations() -> Vec<Migration> {
         migration_0001_accounts::migration(),
         migration_0002_issues::migration(),
         migration_0003_issue_comments::migration(),
-        migration_0004_projects::migration()
+        migration_0004_projects::migration(),
     ]
 }
 

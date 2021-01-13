@@ -49,6 +49,10 @@ impl Project {
         }
     }
 
+    pub fn permalink(&self) -> String {
+        format!("/project/{}", self.slug)
+    }
+
     pub async fn load(project_id: i64) -> sqlx::Result<Self> {
         sqlx::query_as!(
             Self,
@@ -57,6 +61,19 @@ impl Project {
         )
         .fetch_one(crate::pool())
         .await
+    }
+
+    pub async fn find_by_slug(slug: &str) -> Result<Self, ProjectError> {
+        let slug = Self::cleanup_and_validate_slug(slug)?;
+        let project = sqlx::query_as!(
+            Self,
+            "SELECT id, slug, name, description, owner_id, created_at FROM projects WHERE slug = $1",
+            slug
+        )
+            .fetch_one(crate::pool())
+            .await?;
+
+        Ok(project)
     }
 
     pub async fn load_for_update(

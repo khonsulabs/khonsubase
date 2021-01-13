@@ -1,0 +1,22 @@
+{% extends "list_issues" %}
+{% block title %}
+{{ localize(key = "issue-project", language = request.language) }} - {{ project.name }} - {{ site_name() }}
+{% endblock title %}
+{% block issues_heading %}
+
+<div class="d-flex justify-content-between align-items-center">
+    <h1>{{ project.name }}</h1>
+    {% if editable %}
+    <div class="p-2">
+        <a class="btn btn-primary" role="button" href="/project/{{ project.id }}/edit">{{ localize(key =
+            "edit-project", language = request.language) }}</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="container">
+    {{ project.description | render_markdown }}
+</div>
+
+<h2>{{ localize(key = "issues", language = request.language) }}</h2>
+{% endblock issues_heading %}

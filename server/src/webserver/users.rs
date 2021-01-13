@@ -16,6 +16,7 @@ use rocket::{request::Form, response::Redirect};
 struct ViewUserContext {
     request: RequestData,
     user: User,
+    editable: bool,
 }
 
 #[get("/user/<user_id>")]
@@ -30,9 +31,19 @@ pub async fn view_user(
         .await
         .map_sql_to_http()?;
 
+    let editable = request
+        .session
+        .as_ref()
+        .map(|s| s.account.administrator || s.account.id == user.id)
+        .unwrap_or_default();
+
     Ok(Template::render(
         "view_user",
-        ViewUserContext { request, user },
+        ViewUserContext {
+            request,
+            user,
+            editable,
+        },
     ))
 }
 

@@ -250,6 +250,16 @@ impl IssueQueryBuilder {
         self
     }
 
+    pub fn project(mut self, project_id: Option<i64>) -> Self {
+        if let Some(project_id) = project_id {
+            self.where_clauses
+                .push(format!("project_id = {}", project_id));
+        } else {
+            self.where_clauses.push(String::from("project_id IS NULL"));
+        }
+        self
+    }
+
     pub fn owned_by(mut self, issue_id: Option<i64>) -> Self {
         if let Some(issue_id) = issue_id {
             self.where_clauses.push(format!("parent_id = {}", issue_id));
