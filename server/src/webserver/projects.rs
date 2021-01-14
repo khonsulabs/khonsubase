@@ -50,6 +50,7 @@ async fn render_project(
     let request = RequestData::new(language, path, session).await;
     let response = IssueQueryBuilder::new()
         .open()
+        .owned_by(None)
         .project(Some(project.id))
         .query(database::pool())
         .await

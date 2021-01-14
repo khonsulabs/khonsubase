@@ -1,7 +1,11 @@
-use crate::schema::accounts::User;
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
-use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 use serde::{Deserialize, Serialize};
+
+use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
+
+use crate::schema::accounts::User;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueView {
@@ -9,7 +13,8 @@ pub struct IssueView {
     pub author: User,
     pub summary: String,
     pub description: Option<String>,
-    pub project_id: Option<i64>,
+    pub project_slug: Option<String>,
+    pub project_name: Option<String>,
     pub parent_id: Option<i64>,
     pub current_revision_id: Option<i64>,
     pub created_at: DateTime<Utc>,
@@ -25,14 +30,16 @@ impl IssueView {
                 accounts.display_name as author_display_name, 
                 accounts.username as author_username, 
                 summary, 
-                description,
-                project_id,
+                issues.description,
+                projects.slug as "project_slug?",
+                projects.name as "project_name?",
                 parent_id, 
                 current_revision_id, 
                 issues.created_at, 
                 completed_at 
                FROM issues
                INNER JOIN accounts ON issues.author_id = accounts.id 
+               LEFT OUTER JOIN projects ON projects.id = project_id
                WHERE issues.id = $1"#,
             issue_id
         )
@@ -48,7 +55,8 @@ impl IssueView {
             },
             summary: row.summary,
             description: row.description,
-            project_id: row.project_id,
+            project_slug: row.project_slug,
+            project_name: row.project_name,
             parent_id: row.parent_id,
             current_revision_id: row.current_revision_id,
             created_at: row.created_at,
@@ -155,6 +163,39 @@ impl Issue {
         }
 
         Ok(())
+    }
+
+    pub async fn all_parents(issue_id: i64) -> sqlx::Result<Vec<Issue>> {
+        let mut issues = HashMap::new();
+        for issue in sqlx::query_as!(
+            Issue,
+            r#"WITH RECURSIVE issue_hierarchy AS(
+                SELECT * FROM issues WHERE id = $1
+                UNION ALL
+                SELECT parent.* FROM issues parent JOIN issue_hierarchy ON parent.id = issue_hierarchy.parent_id
+            )
+            SELECT id as "id!", author_id as "author_id!", project_id, summary as "summary!", description, parent_id, current_revision_id, created_at as "created_at!", completed_at FROM issue_hierarchy"#,
+            issue_id,
+        ).fetch_all(crate::pool()).await? {
+            issues.insert(issue.id, issue);
+        }
+
+        // Parents aren't guaranteed to be ordered in the order that their IDs are listed. Iterate up the chain to build the ordered list
+        let mut ordered_issues = Vec::new();
+        let mut id = issue_id;
+        while let Some(issue) = issues.remove(&id) {
+            let new_id = issue.parent_id;
+            if id != issue_id {
+                ordered_issues.insert(0, issue);
+            }
+            if let Some(new_id) = new_id {
+                id = new_id
+            } else {
+                break;
+            }
+        }
+
+        Ok(ordered_issues)
     }
 }
 

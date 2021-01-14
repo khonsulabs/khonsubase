@@ -7,6 +7,7 @@
         {% block issues_heading %}
         <h1>{{ localize(key = "issues", language = request.language) }}</h1>
         {% endblock issues_heading %}
+        {% if response.issues | length %}
         <table class="table table-hover table-striped">
             <thead>
                 <tr>
@@ -25,5 +26,14 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+            {% block no_issues %}
+                <div class="alert alert-warning" role="alert">
+                    {{ localize(key = "issues-no-results", language = request.language) }}
+                </div>
+            {% endblock no_issues %}
+        {% endif %}
+        {% block issues_footer %}
+        {% endblock issues_footer %}
     </div>
 {% endblock content %}
