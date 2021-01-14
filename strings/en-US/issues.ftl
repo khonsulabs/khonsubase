@@ -14,6 +14,7 @@ issue-parent = Parent Issue
 edit-issue = Edit #{$issue_id}
 save-issue = Save Issue
 view-issue = Issue #{$issue_id}
+issue-child-of = Belongs to #{$issue_id}
 issue-updated-summmary = Issue updated by {$user} at {$date}
 issue-change-property = Property
 issue-change-old-value = Previous
