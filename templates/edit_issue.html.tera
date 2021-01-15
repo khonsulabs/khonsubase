@@ -49,11 +49,6 @@
             </div>
 
             <div class="mb-3">
-                <label for="parent-id">{{ localize(key = "issue-parent", language = request.language) }}</label>
-                <input class="form-control" id="parent-id" name="parent_id" type="number" value="{{ parent_id }}"/>
-            </div>
-
-            <div class="mb-3">
                 <label for="summary">{{ localize(key = "issue-summary", language = request.language) }}</label>
                 <input autofocus class="form-control" id="summary" name="summary" placeholder="{{ localize(key = "issue-summary", language = request.language) }}" required type="text" value="{{ summary }}"/>
             </div>
