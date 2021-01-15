@@ -51,7 +51,7 @@ jobs:
           cargo test --release --verbose
 
       - name: Deploy to base.khonsulabs.com
-        if: github.ref == 'refs/heads/base.khonsulabs.com'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "$SSH_KEY" > base_ssh_id
           echo "$HOST_KEY" > known_hosts
