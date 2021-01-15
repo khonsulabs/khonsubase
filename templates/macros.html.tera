@@ -3,3 +3,18 @@
 {% endmacro render_user %}
 
 {% macro username(user) %}{% if user.display_name %}{{ user.display_name }} (@{{ user.username }}){% else %}@{{ user.username }}{% endif %}{% endmacro username %}
+
+{% macro issue_summary(summary, completed_at) %}
+{% if completed_at %}
+<span class="badge bg-secondary">{{ localize(key = "issue-completed", language = request.language) }}</span>
+{% else %}
+<span class="badge bg-success">{{ localize(key = "issue-new", language = request.language) }}</span>
+{% endif %}
+{{ summary }}
+{% endmacro issue_summary %}
+
+
+
+{% macro relationship_option(selected_value, value, caption) %}
+<option value="{{ value }}" {% if selected_value == value %} selected{% endif %}>{{ localize(key = caption, language = request.language) }}</option>
+{% endmacro relationship_option %}

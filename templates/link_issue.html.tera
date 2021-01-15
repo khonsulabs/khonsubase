@@ -1,0 +1,45 @@
+{% extends "base" %}
+
+{% import "macros" as macros %}
+
+{% block title %}
+{{ localize(key = "link-issue", language = request.language) }} - {{ site_name() }}
+{% endblock title %}
+{% block content %}
+<div class="container">
+    <form accept-charset="utf-8" action="/issue/{{ issue.id }}/link" method="POST">
+        <h1>{{ localize(key = "link-issue", language = request.language) }}</h1>
+
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ localize(key = error_message, language = request.language) }}
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label for="relationship">{{ localize(key = "issue-relationship", language = request.language) }}</label>
+            <select name="relationship" id="relationship">
+                {{ macros::relationship_option(selected_value = relationship, value = "relates", caption = "issue-relationship-relates-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "blocks", caption = "issue-relationship-blocks-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "blocked", caption = "issue-relationship-blocked-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "precedes", caption = "issue-relationship-precedes-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "preceded", caption = "issue-relationship-preceded-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "causes", caption = "issue-relationship-causes-summary") }}
+                {{ macros::relationship_option(selected_value = relationship, value = "caused", caption = "issue-relationship-caused-summary") }}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="target">{{ localize(key = "link-target", issue_id = issue.id, language = request.language) }}</label>
+            <input class="form-control" id="target" name="target" type="number" value="{{ target }}"/>
+        </div>
+
+        <div class="mb-3">
+            <label for="comment">{{ localize(key = "link-comment", language = request.language) }}</label>
+            <input class="form-control" id="comment" name="comment" type="text" value="{{ comment }}"/>
+        </div>
+
+        <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "link-issue", language = request.language) }}</button>
+    </form>
+</div>
+{% endblock content %}

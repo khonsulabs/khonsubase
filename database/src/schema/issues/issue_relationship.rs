@@ -1,10 +1,11 @@
-use crate::schema::accounts::User;
 use chrono::{DateTime, Utc};
-use migrations::sqlx::{self, Done};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-#[derive(Clone, Debug, sqlx::Type)]
+use migrations::sqlx::{self, Done};
+use serde::export::Formatter;
+use std::str::FromStr;
+
+#[derive(Clone, Copy, Debug, sqlx::Type, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum Relationship {
     Blocks = 1,
@@ -12,11 +13,13 @@ pub enum Relationship {
     Causes,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueRelationship {
-    pub issue_a: i64,
-    pub issue_b: i64,
-    pub relationship: Option<Relationship>,
+    pub issue_id: i64,
+    pub issue_summary: String,
+    pub issue_completed_at: Option<DateTime<Utc>>,
+    pub issue_project_id: Option<i64>,
+    pub relationship: Option<ContextualizedRelationship>,
     pub comment: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -63,4 +66,113 @@ impl IssueRelationship {
 
         Ok(result.rows_affected())
     }
+
+    pub async fn list_for<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        issue_id: i64,
+        executor: E,
+    ) -> sqlx::Result<Vec<Self>> {
+        // This query is complicated due to its use of CASE WHEN as a ternary. To only return the
+        // relevant data from the database, we check on each issue_ field whether the queried issue
+        // is the "a" side. If so, then the related issue being returned is the "b" issue. Otherwise,
+        // it is considered an inverse_relationship and the issue_a data is the one we need to return.
+        let rows = sqlx::query!(
+            r#"SELECT 
+                CASE WHEN issue_a.id = $1 THEN issue_b.id ELSE issue_a.id END as "issue_id!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.project_id ELSE issue_a.project_id END as issue_project_id,
+                CASE WHEN issue_a.id = $1 THEN issue_b.summary ELSE issue_a.summary END as "issue_summary!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.completed_at ELSE issue_a.completed_at END as issue_completed_at,
+                CASE WHEN issue_a.id = $1 THEN FALSE ELSE TRUE END as "inverse_relationship!",
+                relationship as "relationship: Relationship",
+                comment,
+                issue_relationships.created_at
+               FROM issue_relationships
+               INNER JOIN issues issue_a ON issue_a.id = issue_relationships.issue_a
+               INNER JOIN issues issue_b ON issue_b.id = issue_relationships.issue_b
+               WHERE issue_relationships.issue_a = $1 OR issue_relationships.issue_b = $1"#,
+            issue_id,
+        )
+        .fetch_all(executor)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| Self {
+                relationship: row
+                    .relationship
+                    .as_ref()
+                    .map(|r| ContextualizedRelationship::new(*r, row.inverse_relationship)),
+                issue_id: row.issue_id,
+                issue_summary: row.issue_summary,
+                issue_completed_at: row.issue_completed_at,
+                issue_project_id: row.issue_project_id,
+                comment: row.comment,
+                created_at: row.created_at,
+            })
+            .collect())
+    }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextualizedRelationship {
+    pub relationship: Option<Relationship>,
+    pub is_inverse: bool,
+}
+
+impl ContextualizedRelationship {
+    pub fn new(relationship: Relationship, is_inverse: bool) -> Self {
+        Self {
+            relationship: Some(relationship),
+            is_inverse,
+        }
+    }
+
+    pub fn plain() -> Self {
+        Self {
+            relationship: None,
+            is_inverse: false,
+        }
+    }
+}
+
+impl std::fmt::Display for ContextualizedRelationship {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = match (self.relationship, self.is_inverse) {
+            (None, false) | (None, true) => "relates",
+            (Some(Relationship::Blocks), false) => "blocks",
+            (Some(Relationship::Blocks), true) => "blocked",
+            (Some(Relationship::Preceeds), false) => "precedes",
+            (Some(Relationship::Preceeds), true) => "preceded",
+            (Some(Relationship::Causes), false) => "causes",
+            (Some(Relationship::Causes), true) => "caused",
+        };
+
+        f.write_str(string)
+    }
+}
+
+impl FromStr for ContextualizedRelationship {
+    type Err = RelationshipParseError;
+
+    fn from_str(relationship: &str) -> Result<Self, Self::Err> {
+        match relationship {
+            "relates" => Ok(ContextualizedRelationship::plain()),
+            "blocks" => Ok(ContextualizedRelationship::new(Relationship::Blocks, false)),
+            "blocked" => Ok(ContextualizedRelationship::new(Relationship::Blocks, true)),
+            "precedes" => Ok(ContextualizedRelationship::new(
+                Relationship::Preceeds,
+                false,
+            )),
+            "preceded" => Ok(ContextualizedRelationship::new(
+                Relationship::Preceeds,
+                true,
+            )),
+            "causes" => Ok(ContextualizedRelationship::new(Relationship::Causes, false)),
+            "caused" => Ok(ContextualizedRelationship::new(Relationship::Causes, true)),
+            _ => Err(RelationshipParseError),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("invalid relationship")]
+pub struct RelationshipParseError;

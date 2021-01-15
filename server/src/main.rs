@@ -27,3 +27,27 @@ async fn main() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+trait Optionable: Sized {
+    fn into_option(self) -> Option<Self>;
+}
+
+impl Optionable for &str {
+    fn into_option(self) -> Option<Self> {
+        if self.trim().is_empty() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+}
+
+impl Optionable for String {
+    fn into_option(self) -> Option<Self> {
+        if self.trim().is_empty() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+}

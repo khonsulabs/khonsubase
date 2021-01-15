@@ -312,7 +312,7 @@ impl IssueQueryBuilder {
     }
 
     pub async fn query<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
-        &self,
+        self,
         executor: E,
     ) -> sqlx::Result<IssueQueryResults> {
         let where_clauses = self.where_clauses.join(" AND ");

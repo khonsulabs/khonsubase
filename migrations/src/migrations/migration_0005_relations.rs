@@ -15,5 +15,4 @@ pub fn migration() -> Migration {
         "#,
         )
         .with_down("DROP TABLE IF EXISTS issue_relationships")
-        .debug()
 }

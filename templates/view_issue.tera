@@ -7,39 +7,34 @@
 {% endblock title %}
 
 {% block issues_heading %}
-    <div class="d-flex justify-content-between align-items-center">
-        <div class="p-2 flex-grow-1">
-            {% for parent in parents %}
-            <div class="container">
-                <a href="/issue/{{ parent.id}}" class="link-secondary">
-                    {{ localize(key = "issue-child-of", issue_id = parent.id, language = request.language) }} -
-                    {{parent.summary}}</a>
-                {% endfor %}
-                {% for parent in parents %}
-            </div>
+<div class="d-flex justify-content-between align-items-center">
+    <div class="p-2 flex-grow-1">
+        {% for parent in parents %}
+        <div class="container">
+            <a href="/issue/{{ parent.id}}" class="link-secondary">
+                {{ localize(key = "issue-child-of", issue_id = parent.id, language = request.language) }} -
+                {{parent.summary}}</a>
             {% endfor %}
-            <h1>
-                {% if issue.completed_at %}
-                <span class="badge bg-secondary">{{ localize(key = "issue-completed", language = request.language) }}</span>
-                {% else %}
-                <span class="badge bg-success">{{ localize(key = "issue-new", language = request.language) }}</span>
-                {% endif %}
-                {{ localize(key = "view-issue", issue_id = issue.id, language = request.language) }}
-                -
-                {% if issue.project_name %}
-                <a href="/project/{{ issue.project_slug }}" class="link-secondary">{{ issue.project_name }}</a>
-                -
-                {% endif %}
-                {{ issue.summary }}
-            </h1>
+            {% for parent in parents %}
         </div>
-        {% if request.session %}
-        <div class="p-2">
-            <a class="btn btn-primary" role="button" href="/issue/{{ issue.id }}/edit">{{ localize(key =
-                "issue-edit-button", language = request.language) }}</a>
-        </div>
-        {% endif %}
+        {% endfor %}
+        <h1>
+            {{ localize(key = "view-issue", issue_id = issue.id, language = request.language) }}
+            -
+            {% if issue.project_name %}
+            <a href="/project/{{ issue.project_slug }}" class="link-secondary">{{ issue.project_name }}</a>
+            -
+            {% endif %}
+            {{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at) }}
+        </h1>
     </div>
+    {% if editable %}
+    <div class="p-2">
+        <a class="btn btn-primary" role="button" href="/issue/{{ issue.id }}/edit">{{ localize(key =
+            "issue-edit-button", language = request.language) }}</a>
+    </div>
+    {% endif %}
+</div>
 
 <div class="m-2 p-2 border rounded">
     <div class="d-flex flex-row">
@@ -60,6 +55,45 @@
     {% endblock no_issues %}
 
     {% block issues_footer %}
+</div>
+
+<div class="m-2 p-2 border rounded">
+    <div class="d-flex flex-row">
+        <h2 class="flex-grow-1">{{ localize(key = "issue-related", language = request.language) }}</h2>
+        {% if editable %}
+        <div class="p-2">
+            <a class="btn btn-primary" role="button" href="/issue/{{ issue.id }}/link">{{ localize(key =
+                "issue-add-relationship-button", language = request.language) }}</a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if relationships | length %}
+    <table class="table">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>{{ localize(key = "issue-relationship", language = request.language) }}</th>
+            <th>{{ localize(key = "issue-summary", language = request.language) }}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for relationship in relationships %}
+            <tr class="position-relative">
+                <td>{{ relationship.issue_id }}</td>
+                <td>
+                    {% set relationship_key = relationship.relationship | relationship_summary_key %}
+                    {{ localize(key = relationship_key, language = request.language) }}
+                </td>
+                <td><a href="/issue/{{ relationship.issue_id }}" class="stretched-link">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at) }}</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="p-2 fst-italic text-secondary">{{ localize(key =
+        "issue-no-relationships", language = request.language) }}</p>
+    {% endif %}
 </div>
 
 {% for entry in timeline.entries %}
@@ -100,7 +134,7 @@
     {% endif %}
 </div>
 {% endfor %}
-{% if request.session %}
+{% if editable %}
 <div class="d-flex flex-row-reverse">
     <div class="p-2">
         <a class="btn btn-primary" role="button" href="/issue/{{ issue.id }}/edit">{{ localize(key =

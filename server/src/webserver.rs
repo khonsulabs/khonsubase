@@ -51,6 +51,10 @@ fn rocket_server() -> rocket::Rocket {
             engines
                 .tera
                 .register_filter("language_code", localization::LanguageCode);
+            engines.tera.register_filter(
+                "relationship_summary_key",
+                issues::RelationshipSummaryKeyFilter,
+            );
             engines
                 .tera
                 .register_function("localize", localization::Localize);
@@ -73,6 +77,8 @@ fn rocket_server() -> rocket::Rocket {
                 issues::edit_issue,
                 issues::view_issue,
                 issues::list_issues,
+                issues::link_issue,
+                issues::link_issue_post,
                 users::view_user,
                 users::edit_user,
                 users::save_user,
@@ -231,8 +237,10 @@ impl<E> From<E> for Failure
 where
     E: std::error::Error,
 {
-    fn from(_: E) -> Self {
-        unimplemented!()
+    fn from(error: E) -> Self {
+        error!("error processing request: {:?}", error);
+
+        Failure::Status(Status::InternalServerError)
     }
 }
 

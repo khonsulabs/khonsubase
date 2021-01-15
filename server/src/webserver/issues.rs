@@ -4,22 +4,49 @@ use serde::{Deserialize, Serialize};
 
 use database::{
     schema::issues::{
-        Issue, IssueQueryBuilder, IssueQueryResults, IssueRevision, IssueRevisionChange,
-        IssueRevisionView, IssueView, Project,
+        Issue, IssueQueryBuilder, IssueQueryResults, IssueRelationship, IssueRevision,
+        IssueRevisionChange, IssueRevisionView, IssueView, Project,
     },
     sqlx,
     sqlx::types::chrono::Utc,
     DatabaseError, SqlxResultExt,
 };
 
-use crate::webserver::{
-    auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
+use crate::{
+    webserver::{
+        auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData,
+        ResultExt,
+    },
+    Optionable,
 };
+use database::schema::issues::ContextualizedRelationship;
+use rocket_contrib::templates::tera;
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
     request: RequestData,
     response: IssueQueryResults,
+}
+
+pub trait AuthoredBy {
+    fn author_id(&self) -> i64;
+}
+
+impl AuthoredBy for IssueView {
+    fn author_id(&self) -> i64 {
+        self.author.id
+    }
+}
+
+impl AuthoredBy for Issue {
+    fn author_id(&self) -> i64 {
+        self.author_id
+    }
+}
+
+pub fn can_edit_issue<I: AuthoredBy>(request: &RequestData, _issue: &I) -> bool {
+    request.session.is_some()
 }
 
 #[get("/issues")]
@@ -52,28 +79,34 @@ struct ViewIssueContext {
     request: RequestData,
     issue: IssueView,
     parents: Vec<Issue>,
+    relationships: Vec<IssueRelationship>,
     timeline: IssueTimeline,
     response: IssueQueryResults,
+    editable: bool,
 }
 
 async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Template> {
-    let issue = IssueView::load(issue_id).await?;
-    let parents = Issue::all_parents(issue.id).await?;
-    let timeline = IssueTimeline {
-        entries: IssueRevisionView::list_for(issue_id).await?,
-    };
-    let response = IssueQueryBuilder::new()
-        .owned_by(Some(issue.id))
-        .query(database::pool())
-        .await?;
+    let (issue, parents, relationships, entries, response) = futures::try_join!(
+        IssueView::load(issue_id),
+        Issue::all_parents(issue_id),
+        IssueRelationship::list_for(issue_id, database::pool()),
+        IssueRevisionView::list_for(issue_id),
+        IssueQueryBuilder::new()
+            .owned_by(Some(issue_id))
+            .query(database::pool()),
+    )?;
+    let timeline = IssueTimeline { entries };
+    let editable = can_edit_issue(&request, &issue);
     Ok(Template::render(
         "view_issue",
         ViewIssueContext {
             request,
             issue,
             parents,
+            relationships,
             timeline,
             response,
+            editable,
         },
     ))
 }
@@ -147,23 +180,27 @@ pub async fn edit_issue(
     let request = RequestData::new(language, path, session).await;
     if request.logged_in() {
         let issue = Issue::load(issue_id).await.map_to_failure()?;
-        let projects = Project::list().await?;
-        Ok(Template::render(
-            "edit_issue",
-            EditIssueContext {
-                request,
-                issue_id: Some(issue_id),
-                current_revision_id: issue.current_revision_id,
-                error_message: None,
-                summary: Some(issue.summary),
-                description: issue.description,
-                comment: None,
-                completed: issue.completed_at.is_some(),
-                project_id: issue.project_id,
-                parent_id: issue.parent_id,
-                projects,
-            },
-        ))
+        if can_edit_issue(&request, &issue) {
+            let projects = Project::list().await?;
+            Ok(Template::render(
+                "edit_issue",
+                EditIssueContext {
+                    request,
+                    issue_id: Some(issue_id),
+                    current_revision_id: issue.current_revision_id,
+                    error_message: None,
+                    summary: Some(issue.summary),
+                    description: issue.description,
+                    comment: None,
+                    completed: issue.completed_at.is_some(),
+                    project_id: issue.project_id,
+                    parent_id: issue.parent_id,
+                    projects,
+                },
+            ))
+        } else {
+            Err(Failure::forbidden())
+        }
     } else {
         Err(Failure::Redirect(Redirect::to(
             "/signin?origin=/issues/new",
@@ -337,45 +374,149 @@ pub async fn save_issue(
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     if let Some(session) = &request.session {
-        let result = update_issue(&issue_form, session.account.id).await;
+        if issue_form.issue_id.is_none()
+            || can_edit_issue(&request, &Issue::load(issue_form.issue_id.unwrap()).await?)
+        {
+            let result = update_issue(&issue_form, session.account.id).await;
 
-        match result {
-            Ok(issue) => Err(Failure::redirect(format!("/issue/{}", issue.id))),
-            Err(error) => {
-                let mut current_revision_id = issue_form.current_revision_id;
-                let error_messsage = match error {
-                    IssueUpdateError::IssueAlreadyUpdated {
-                        current_revision_id: updated_revision_id,
-                    } => {
-                        current_revision_id = updated_revision_id;
-                        "issues-error-already-updated"
+            match result {
+                Ok(issue) => Err(Failure::redirect(format!("/issue/{}", issue.id))),
+                Err(error) => {
+                    let mut current_revision_id = issue_form.current_revision_id;
+                    let error_messsage = match error {
+                        IssueUpdateError::IssueAlreadyUpdated {
+                            current_revision_id: updated_revision_id,
+                        } => {
+                            current_revision_id = updated_revision_id;
+                            "issues-error-already-updated"
+                        }
+                        IssueUpdateError::ParentNotFound => "issues-error-parent-not-found",
+                        IssueUpdateError::CantCloseBecauseOfChild => {
+                            "issues-error-cant-close-child"
+                        }
+                        IssueUpdateError::InternalError => "internal-error-saving",
                     }
-                    IssueUpdateError::ParentNotFound => "issues-error-parent-not-found",
-                    IssueUpdateError::CantCloseBecauseOfChild => "issues-error-cant-close-child",
-                    IssueUpdateError::InternalError => "internal-error-saving",
-                }
-                .to_string();
-                let projects = Project::list().await?;
+                    .to_string();
+                    let projects = Project::list().await?;
 
-                Ok(Template::render(
-                    "edit_issue",
-                    EditIssueContext {
-                        request,
-                        error_message: Some(error_messsage),
-                        issue_id: issue_form.issue_id,
-                        current_revision_id,
-                        summary: Some(issue_form.summary.clone()),
-                        description: issue_form.description.clone(),
-                        comment: issue_form.comment.clone(),
-                        completed: issue_form.completed,
-                        project_id: issue_form.project_id,
-                        parent_id: issue_form.parent_id,
-                        projects,
-                    },
-                ))
+                    Ok(Template::render(
+                        "edit_issue",
+                        EditIssueContext {
+                            request,
+                            error_message: Some(error_messsage),
+                            issue_id: issue_form.issue_id,
+                            current_revision_id,
+                            summary: Some(issue_form.summary.clone()),
+                            description: issue_form.description.clone(),
+                            comment: issue_form.comment.clone(),
+                            completed: issue_form.completed,
+                            project_id: issue_form.project_id,
+                            parent_id: issue_form.parent_id,
+                            projects,
+                        },
+                    ))
+                }
             }
+        } else {
+            Err(Failure::forbidden())
         }
     } else {
         Err(Failure::redirect("/signin?origin=/issues/new"))
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct LinkIssueContext {
+    request: RequestData,
+    issue: IssueView,
+    target: Option<i64>,
+    relationship: Option<String>,
+    comment: Option<String>,
+}
+
+#[get("/issue/<issue_id>/link")]
+pub async fn link_issue(
+    language: UserLanguage,
+    path: FullPathAndQuery,
+    session: Option<SessionId>,
+    issue_id: i64,
+) -> Result<Template, Failure> {
+    let request = RequestData::new(language, path, session).await;
+    let issue = IssueView::load(issue_id).await?;
+
+    if can_edit_issue(&request, &issue) {
+        Ok(Template::render(
+            "link_issue",
+            LinkIssueContext {
+                request,
+                issue,
+                target: None,
+                relationship: None,
+                comment: None,
+            },
+        ))
+    } else {
+        Err(Failure::forbidden())
+    }
+}
+
+#[derive(FromForm, Clone, Debug)]
+pub struct LinkIssueForm {
+    target: i64,
+    relationship: String,
+    comment: Option<String>,
+}
+
+#[post("/issue/<issue_id>/link", data = "<form>")]
+pub async fn link_issue_post(
+    form: Form<LinkIssueForm>,
+    language: UserLanguage,
+    path: FullPathAndQuery,
+    session: Option<SessionId>,
+    issue_id: i64,
+) -> Result<(), Failure> {
+    let request = RequestData::new(language, path, session).await;
+    let issue = IssueView::load(issue_id).await?;
+
+    if can_edit_issue(&request, &issue) {
+        let link = ContextualizedRelationship::from_str(&form.relationship)?;
+        let (issue_a, issue_b) = if link.is_inverse {
+            (form.target, issue_id)
+        } else {
+            (issue_id, form.target)
+        };
+
+        IssueRelationship::link(
+            issue_a,
+            issue_b,
+            link.relationship,
+            form.comment
+                .as_ref()
+                .map(|comment| comment.trim().into_option())
+                .flatten(),
+            database::pool(),
+        )
+        .await?;
+        Err(Failure::redirect(format!("/issue/{}", issue_id)))
+    } else {
+        Err(Failure::forbidden())
+    }
+}
+
+pub struct RelationshipSummaryKeyFilter;
+
+impl tera::Filter for RelationshipSummaryKeyFilter {
+    fn filter(
+        &self,
+        relationship: &tera::Value,
+        _: &HashMap<String, tera::Value>,
+    ) -> tera::Result<tera::Value> {
+        let link = if relationship.is_null() {
+            ContextualizedRelationship::plain()
+        } else {
+            serde_json::from_value::<ContextualizedRelationship>(relationship.clone())?
+        };
+        let key = format!("issue-relationship-{}-summary", link);
+        Ok(tera::Value::String(key))
     }
 }
