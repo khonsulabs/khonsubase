@@ -83,7 +83,12 @@
         <tbody>
         {% for relationship in relationships %}
             <tr class="position-relative">
-                <td>{{ relationship.issue_id }}<a href="/issue/{{ issue.id }}/link?to={{ relationship.issue_id }}"><i class="bi bi-pencil-square"></i></a></td>
+                <td>
+                    {{ relationship.issue_id }}
+                    {% if editable %}
+                    <a href="/issue/{{ issue.id }}/link?to={{ relationship.issue_id }}"><i class="bi bi-pencil-square"></i></a>
+                    {% endif %}
+                </td>
                 <td>
                     {% set relationship_key = relationship.relationship | relationship_summary_key %}
                     {{ localize(key = relationship_key, language = request.language) }}
