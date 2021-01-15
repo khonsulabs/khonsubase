@@ -39,7 +39,18 @@
             <input class="form-control" id="comment" name="comment" type="text" value="{{ comment }}"/>
         </div>
 
-        <button class="btn btn-lg btn-primary ms-auto" type="submit">{{ localize(key = "link-issue", language = request.language) }}</button>
+        <div class="d-flex justify-content-between">
+            {% if existing %}
+                <a class="btn btn-lg btn-danger" role="button" href="/issue/{{ issue.id }}/unlink/{{ target }}">{{ localize(key = "unlink-issue", language = request.language) }}</a>
+            {% endif %}
+            <button class="btn btn-lg btn-primary ms-auto" type="submit">
+                {% if existing %}
+                    {{ localize(key = "link-issue-update", language = request.language) }}
+                {% else %}
+                    {{ localize(key = "link-issue", language = request.language) }}
+                {% endif %}
+            </button>
+        </div>
     </form>
 </div>
 {% endblock content %}

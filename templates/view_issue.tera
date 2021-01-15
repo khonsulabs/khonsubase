@@ -30,6 +30,8 @@
     </div>
     {% if editable %}
     <div class="p-2">
+        <a class="btn btn-secondary" role="button" href="/issues/new?parent_id={{ issue.id }}">{{ localize(key =
+            "new-subtask", language = request.language) }}</a>
         <a class="btn btn-primary" role="button" href="/issue/{{ issue.id }}/edit">{{ localize(key =
             "issue-edit-button", language = request.language) }}</a>
     </div>
@@ -69,23 +71,25 @@
     </div>
 
     {% if relationships | length %}
-    <table class="table">
+    <table class="table table-striped">
         <thead>
         <tr>
             <th>#</th>
             <th>{{ localize(key = "issue-relationship", language = request.language) }}</th>
             <th>{{ localize(key = "issue-summary", language = request.language) }}</th>
+            <th>{{ localize(key = "link-comment", language = request.language) }}</th>
         </tr>
         </thead>
         <tbody>
         {% for relationship in relationships %}
             <tr class="position-relative">
-                <td>{{ relationship.issue_id }}</td>
+                <td>{{ relationship.issue_id }}<a href="/issue/{{ issue.id }}/link?to={{ relationship.issue_id }}"><i class="bi bi-pencil-square"></i></a></td>
                 <td>
                     {% set relationship_key = relationship.relationship | relationship_summary_key %}
                     {{ localize(key = relationship_key, language = request.language) }}
                 </td>
-                <td><a href="/issue/{{ relationship.issue_id }}" class="stretched-link">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at) }}</a></td>
+                <td><a href="/issue/{{ relationship.issue_id }}">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at) }}</a></td>
+                <td>{{ relationship.comment }}</td>
             </tr>
         {% endfor %}
         </tbody>

@@ -1,8 +1,9 @@
-use std::{collections::HashMap, env, marker::PhantomData, path::PathBuf};
+use std::{collections::HashMap, convert::TryInto, env, marker::PhantomData, path::PathBuf};
 
 use comrak::ComrakOptions;
+use percent_encoding::{utf8_percent_encode, AsciiSet};
 use rocket::{
-    http::Status,
+    http::{uri::Uri, Status},
     request::{FromRequest, Outcome},
     response::{Redirect, Responder},
     Request,
@@ -19,9 +20,6 @@ use localization::UserLanguage;
 use crate::configuration::{Configuration, ConfigurationManager, SiteName};
 
 use self::auth::{SessionData, SessionId};
-use percent_encoding::{utf8_percent_encode, AsciiSet};
-use rocket::http::uri::Uri;
-use std::convert::TryInto;
 
 mod articles;
 mod auth;
@@ -79,6 +77,7 @@ fn rocket_server() -> rocket::Rocket {
                 issues::list_issues,
                 issues::link_issue,
                 issues::link_issue_post,
+                issues::unlink_issue,
                 users::view_user,
                 users::edit_user,
                 users::save_user,

@@ -1,11 +1,13 @@
+use std::{collections::HashMap, str::FromStr};
+
 use rocket::{http::Status, request::Form, response::Redirect};
-use rocket_contrib::templates::Template;
+use rocket_contrib::templates::{tera, Template};
 use serde::{Deserialize, Serialize};
 
 use database::{
     schema::issues::{
-        Issue, IssueQueryBuilder, IssueQueryResults, IssueRelationship, IssueRevision,
-        IssueRevisionChange, IssueRevisionView, IssueView, Project,
+        ContextualizedRelationship, Issue, IssueQueryBuilder, IssueQueryResults, IssueRelationship,
+        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueView, Project,
     },
     sqlx,
     sqlx::types::chrono::Utc,
@@ -19,9 +21,6 @@ use crate::{
     },
     Optionable,
 };
-use database::schema::issues::ContextualizedRelationship;
-use rocket_contrib::templates::tera;
-use std::{collections::HashMap, str::FromStr};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -138,13 +137,15 @@ struct EditIssueContext {
     projects: Vec<Project>,
 }
 
-#[get("/issues/new?<summary>&<description>")]
+#[get("/issues/new?<summary>&<description>&<project_id>&<parent_id>")]
 pub async fn new_issue(
     language: UserLanguage,
     path: FullPathAndQuery,
     session: Option<SessionId>,
     summary: Option<String>,
     description: Option<String>,
+    project_id: Option<i64>,
+    parent_id: Option<i64>,
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     let projects = Project::list().await?;
@@ -155,14 +156,15 @@ pub async fn new_issue(
                 request,
                 summary,
                 description,
+                project_id,
+                parent_id,
+                projects,
+
                 issue_id: None,
                 current_revision_id: None,
                 error_message: None,
                 comment: None,
                 completed: false,
-                project_id: None,
-                parent_id: None,
-                projects,
             },
         ))
     } else {
@@ -429,20 +431,34 @@ pub async fn save_issue(
 struct LinkIssueContext {
     request: RequestData,
     issue: IssueView,
+    existing: bool,
     target: Option<i64>,
     relationship: Option<String>,
     comment: Option<String>,
 }
 
-#[get("/issue/<issue_id>/link")]
+#[get("/issue/<issue_id>/link?<to>")]
 pub async fn link_issue(
     language: UserLanguage,
     path: FullPathAndQuery,
     session: Option<SessionId>,
     issue_id: i64,
+    to: Option<i64>,
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     let issue = IssueView::load(issue_id).await?;
+    let target = to;
+    let mut relationship = None;
+    let mut comment = None;
+    let mut existing = false;
+
+    if let Some(target_id) = target {
+        if let Ok(link) = IssueRelationship::find(issue_id, target_id, database::pool()).await {
+            relationship = link.relationship.map(|r| r.to_string());
+            comment = link.comment;
+            existing = true;
+        }
+    }
 
     if can_edit_issue(&request, &issue) {
         Ok(Template::render(
@@ -450,11 +466,31 @@ pub async fn link_issue(
             LinkIssueContext {
                 request,
                 issue,
-                target: None,
-                relationship: None,
-                comment: None,
+                target,
+                relationship,
+                comment,
+                existing,
             },
         ))
+    } else {
+        Err(Failure::forbidden())
+    }
+}
+
+#[get("/issue/<issue_id>/unlink/<other_issue_id>")]
+pub async fn unlink_issue(
+    language: UserLanguage,
+    path: FullPathAndQuery,
+    session: Option<SessionId>,
+    issue_id: i64,
+    other_issue_id: i64,
+) -> Result<(), Failure> {
+    let request = RequestData::new(language, path, session).await;
+    let issue = IssueView::load(issue_id).await?;
+
+    if can_edit_issue(&request, &issue) {
+        IssueRelationship::unlink(issue_id, other_issue_id, database::pool()).await?;
+        Err(Failure::redirect(format!("/issue/{}", issue_id)))
     } else {
         Err(Failure::forbidden())
     }

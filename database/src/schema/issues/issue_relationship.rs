@@ -1,9 +1,9 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{export::Formatter, Deserialize, Serialize};
 
 use migrations::sqlx::{self, Done};
-use serde::export::Formatter;
-use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, sqlx::Type, Serialize, Deserialize)]
 #[repr(i32)]
@@ -51,13 +51,13 @@ impl IssueRelationship {
         Ok(())
     }
 
-    pub async fn unlink<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>, S: ToString>(
+    pub async fn unlink<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
         issue_a: i64,
         issue_b: i64,
         executor: E,
     ) -> sqlx::Result<u64> {
         let result = sqlx::query!(
-            r#"DELETE FROM issue_relationships WHERE issue_a = $1 AND issue_b = $2"#,
+            r#"DELETE FROM issue_relationships WHERE (issue_a = $1 AND issue_b = $2) OR (issue_b = $1 AND issue_a = $2)"#,
             issue_a,
             issue_b,
         )
@@ -109,6 +109,46 @@ impl IssueRelationship {
                 created_at: row.created_at,
             })
             .collect())
+    }
+
+    pub async fn find<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        issue_one: i64,
+        issue_two: i64,
+        executor: E,
+    ) -> sqlx::Result<Self> {
+        // This query is the same as from list_for, except the filter at the bottom includes the second ID test
+        let row = sqlx::query!(
+            r#"SELECT 
+                CASE WHEN issue_a.id = $1 THEN issue_b.id ELSE issue_a.id END as "issue_id!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.project_id ELSE issue_a.project_id END as issue_project_id,
+                CASE WHEN issue_a.id = $1 THEN issue_b.summary ELSE issue_a.summary END as "issue_summary!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.completed_at ELSE issue_a.completed_at END as issue_completed_at,
+                CASE WHEN issue_a.id = $1 THEN FALSE ELSE TRUE END as "inverse_relationship!",
+                relationship as "relationship: Relationship",
+                comment,
+                issue_relationships.created_at
+               FROM issue_relationships
+               INNER JOIN issues issue_a ON issue_a.id = issue_relationships.issue_a
+               INNER JOIN issues issue_b ON issue_b.id = issue_relationships.issue_b
+               WHERE (issue_relationships.issue_a = $1 AND issue_relationships.issue_b = $2) OR (issue_relationships.issue_b = $1 AND issue_relationships.issue_a = $2)"#,
+            issue_one,
+            issue_two
+        )
+            .fetch_one(executor)
+            .await?;
+
+        Ok(Self {
+            relationship: row
+                .relationship
+                .as_ref()
+                .map(|r| ContextualizedRelationship::new(*r, row.inverse_relationship)),
+            issue_id: row.issue_id,
+            issue_summary: row.issue_summary,
+            issue_completed_at: row.issue_completed_at,
+            issue_project_id: row.issue_project_id,
+            comment: row.comment,
+            created_at: row.created_at,
+        })
     }
 }
 

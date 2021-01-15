@@ -8,6 +8,10 @@
     <h1>{{ project.name }}</h1>
     {% if editable %}
     <div class="p-2">
+    </div>
+    <div class="p-2">
+        <a class="btn btn-secondary" role="button" href="/issues/new?project_id={{ project.id }}">{{ localize(key =
+            "new-issue", language = request.language) }}</a>
         <a class="btn btn-primary" role="button" href="/project/{{ project.id }}/edit">{{ localize(key =
             "edit-project", language = request.language) }}</a>
     </div>

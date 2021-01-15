@@ -2,6 +2,7 @@ issues = Issues
 issues-no-results = No issues found matching the query.
 issue-no-relationships = No related issues
 new-issue = New Issue
+new-subtask = New Subtask
 issue-summary = Summary
 issue-description = Description
 issue-created-at = Created At
@@ -33,6 +34,8 @@ issues-error-cant-close-child = This issue cannot be marked as completed because
 
 
 link-issue = Link Issue
+link-issue-update = Update Link
+unlink-issue = Remove Link
 link-target = Issue to link {$issue_id} with
 issue-relationship-relates-summary = Relates to
 issue-relationship-blocks-summary = Blocks

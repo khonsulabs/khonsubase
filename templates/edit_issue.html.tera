@@ -27,14 +27,30 @@
                 </div>
             {% endif %}
 
+            <div class="mb-3 d-flex">
+                <div class="me-2 flex-fill">
+                    <label for="project">{{ localize(key = "issue-project", language = request.language) }}</label>
+                    <select class="form-select" id="project" name="project_id">
+                        <option value="" {% if not project_id %}selected{% endif %}>
+                            {{ localize(key = "issue-project-none", language = request.language) }}
+                        </option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if project_id== project.id %}selected{% endif %}>
+                            {{ project.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="ms-2 flex-fill">
+                    <label for="parent-id">{{ localize(key = "issue-parent", language = request.language) }}</label>
+                    <input class="form-control" id="parent-id" name="parent_id" type="number" value="{{ parent_id }}"/>
+                </div>
+            </div>
+
             <div class="mb-3">
-                <label for="project">{{ localize(key = "issue-project", language = request.language) }}</label>
-                <select class="form-select" id="project" name="project_id">
-                    <option value="" {% if not project_id %}selected{% endif %}>{{ localize(key = "issue-project-none", language = request.language) }}</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}" {% if project_id == project.id %}selected{% endif %}>{{ project.name }}</option>
-                    {% endfor %}
-                </select>
+                <label for="parent-id">{{ localize(key = "issue-parent", language = request.language) }}</label>
+                <input class="form-control" id="parent-id" name="parent_id" type="number" value="{{ parent_id }}"/>
             </div>
 
             <div class="mb-3">
@@ -46,11 +62,6 @@
                 <label for="description">{{ localize(key = "issue-description", language = request.language) }}</label>
                 <input id="description" name="description" type="hidden" value="{{ description }}"/>
                 <div id="description_editor"></div>
-            </div>
-
-            <div class="mb-3">
-                <label for="parent-id">{{ localize(key = "issue-parent", language = request.language) }}</label>
-                <input class="form-control" id="parent-id" name="parent_id" type="number" value="{{ parent_id }}"/>
             </div>
 
             {% if issue_id %}
