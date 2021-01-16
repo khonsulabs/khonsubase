@@ -12,6 +12,8 @@ pub fn find_article(slug: &str) -> Option<Article> {
         Some(Article::hardcoded(slug, "# Welcome to Khonsubase\n\nThis is a pre-alpha [work-in-progress project](https://github.com/khonsulabs/khonsubase). There is no Terms of Service at this time."))
     } else if slug == "privacy-policy" {
         Some(Article::hardcoded(slug, "# Privacy Policy\n\nThis is a pre-alpha [work-in-progress project](https://github.com/khonsulabs/khonsubase). There is no Privacy Policy at this time."))
+    } else if slug == "signup" {
+        Some(Article::hardcoded(slug, "# Sign Up\n\nSigning up is not currently supported. You can track progress towards this being supported [here](https://base.khonsulabs.com/issue/21)."))
     } else {
         None
     }
