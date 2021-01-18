@@ -7,6 +7,7 @@ mod configuration;
 mod setup;
 mod webserver;
 
+mod kbql;
 #[cfg(test)]
 #[allow(dead_code)]
 mod test_helpers;
