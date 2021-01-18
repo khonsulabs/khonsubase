@@ -23,7 +23,7 @@
                     <tr>
                         <td>{{ issue.id }}</td>
                         <td><a href="/issue/{{ issue.id }}">{{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at) }}</a></td>
-                        <td>{{ issue.created_at | date(format=localize(key = "datetime-format", language = request.language)) }}</td>
+                        <td>{{ macros::render_date(value=issue.created_at, language = request.language) }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

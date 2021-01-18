@@ -99,6 +99,24 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
         crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.10.3/dayjs.min.js" integrity="sha512-0fcCRl828lBlrSCa8QJY51mtNqTcHxabaXVLPgw/jPA5Nutujh6CbTdDgRzl9aSPYW/uuE7c4SffFUQFBAy6lg==" crossorigin="anonymous"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.10.3/locale/en.min.js" integrity="sha512-2uenbLpmKVYJT0OEPCEWCiKMkX6aes4OTUv8RQxEquaPw7AsDkwvFCHG87JGzaiC8HUuCVCe2UbUx0HHOkG5pA==" crossorigin="anonymous"></script>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.10.3/plugin/relativeTime.min.js" integrity="sha512-BQqXM2ye6+98YyRQzE676pY2Bc4d3o/fBNlBQyKv2J9oKwp9K/4BVqFWIJBx1zKlAJ8M0PIJR5Yp51FsnSUynQ==" crossorigin="anonymous"></script>
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        dayjs.extend(window.dayjs_plugin_relativeTime);
+        const dates = document.querySelectorAll(".datetime");
+        dates.forEach(function(date) {
+            const original_contents = date.innerHTML.trim();
+            const parsed_date = dayjs(date.getAttribute("data-iso-date"));
+            if (parsed_date) {
+                date.innerHTML = parsed_date.fromNow();
+                date.setAttribute("data-bs-toggle", "tooltip");
+                date.setAttribute("title", original_contents);
+            }
+        })
+    });
+</script>
 {% block footer %}{% endblock footer %}
 {% block afterbody %}{% endblock afterbody %}
 </body>

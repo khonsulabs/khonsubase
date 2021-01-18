@@ -43,8 +43,7 @@
         <div class="p-2">{{ localize(key = "issue-authored-by", language = request.language) }} {{
             macros::render_user(user = issue.author) }}
         </div>
-        <div class="p-2">{{ localize(key = "issue-created-at", language = request.language) }} {{ issue.created_at |
-            date(format=localize(key = "datetime-format", language = request.language)) }}
+        <div class="p-2">{{ localize(key = "issue-created-at", language = request.language) }} {{ macros::render_date(value = issue.created_at, language = request.language) }}
         </div>
     </div>
 
@@ -109,10 +108,8 @@
 {% if loop.first %}
 <h2>{{ localize(key = "issue-timeline", language = request.language) }}</h2>
 {% endif %}
-{% set entry_date = entry.created_at | date(format=localize(key = "datetime-format", language = request.language))
-%}
 <div class="m-2 p-2 border rounded">
-    <h4>{{ localize(key = "issue-updated-summmary", user = macros::render_user(user = issue.author), date = entry_date,
+    <h4>{{ localize(key = "issue-updated-summmary", user = macros::render_user(user = issue.author), date = macros::render_date(value = entry.created_at, language = request.language),
         language = request.language) }}</h4>
     {% for property, change in entry.changes %}
     {% if loop.first %}
