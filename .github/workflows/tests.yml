@@ -50,19 +50,6 @@ jobs:
         run: |
           cargo test --release --verbose
 
-      - name: Run code coverage
-        run: |
-          cargo +nightly test --all-features
-          zip -0 ccov.zip `find . \( -name "khonsubase*.gc*" \) -print`;
-          rm -rf target
-          grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --ignore "/target" -o lcov.info;
-          bash <(curl -s https://codecov.io/bash) -f lcov.info;
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests" # TODO: https://github.com/alexcrichton/proc-macro2/issues/218
-          RUSTDOCFLAGS: "-Cpanic=abort"
-
       - name: Deploy to base.khonsulabs.com
         if: github.ref == 'refs/heads/main'
         run: |
@@ -82,3 +69,17 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.BASE_KHONSULABS_COM_DEPLOY_KEY }}
           HOST_KEY: ${{ secrets.BASE_KHONSULABS_COM_SSH_FINGERPRINT }}
+
+      - name: Run code coverage
+        run: |
+          cargo +nightly test --all-features
+          zip -0 ccov.zip `find . \( -name "server*.gc*" \) -print`
+          zip -0 ccov.zip `find . \( -name "database*.gc*" \) -print`
+          rm -rf target
+          grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --ignore "/target" -o lcov.info;
+          bash <(curl -s https://codecov.io/bash) -f lcov.info;
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests" # TODO: https://github.com/alexcrichton/proc-macro2/issues/218
+          RUSTDOCFLAGS: "-Cpanic=abort"
