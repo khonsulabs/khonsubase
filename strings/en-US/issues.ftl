@@ -27,10 +27,12 @@ issue-change-new-value = Updated
 
 issue-completed = Completed
 issue-new = Ready
+issue-blocked = Blocked
 
 issues-error-already-updated = Another change has been made to the issue already. Please confirm your changes.
 issues-error-parent-not-found = Parent issue could not be found
 issues-error-cant-close-child = This issue cannot be marked as completed because a child issue is open.
+issues-error-cant-close-blocked = This issue cannot be closed because it is blocked by another open issue.
 
 
 link-issue = Link Issue

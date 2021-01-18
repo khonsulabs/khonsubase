@@ -25,7 +25,7 @@
             <a href="/project/{{ issue.project_slug }}" class="link-secondary">{{ issue.project_name }}</a>
             -
             {% endif %}
-            {{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at) }}
+            {{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at, blocked = issue.blocked) }}
         </h1>
     </div>
     {% if editable %}
@@ -92,7 +92,7 @@
                     {% set relationship_key = relationship.relationship | relationship_summary_key %}
                     {{ localize(key = relationship_key, language = request.language) }}
                 </td>
-                <td><a href="/issue/{{ relationship.issue_id }}">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at) }}</a></td>
+                <td><a href="/issue/{{ relationship.issue_id }}">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at, blocked = relationship.issue_blocked) }}</a></td>
                 <td>{{ relationship.comment }}</td>
             </tr>
         {% endfor %}

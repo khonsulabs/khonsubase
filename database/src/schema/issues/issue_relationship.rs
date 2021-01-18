@@ -19,7 +19,8 @@ pub struct IssueRelationship {
     pub issue_summary: String,
     pub issue_completed_at: Option<DateTime<Utc>>,
     pub issue_project_id: Option<i64>,
-    pub relationship: Option<ContextualizedRelationship>,
+    pub issue_blocked: bool,
+    pub relationship: ContextualizedRelationship,
     pub comment: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -82,6 +83,7 @@ impl IssueRelationship {
                 CASE WHEN issue_a.id = $1 THEN issue_b.summary ELSE issue_a.summary END as "issue_summary!",
                 CASE WHEN issue_a.id = $1 THEN issue_b.completed_at ELSE issue_a.completed_at END as issue_completed_at,
                 CASE WHEN issue_a.id = $1 THEN FALSE ELSE TRUE END as "inverse_relationship!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.blocked ELSE issue_a.blocked END as "issue_blocked!",
                 relationship as "relationship: Relationship",
                 comment,
                 issue_relationships.created_at
@@ -99,12 +101,13 @@ impl IssueRelationship {
             .map(|row| Self {
                 relationship: row
                     .relationship
-                    .as_ref()
-                    .map(|r| ContextualizedRelationship::new(*r, row.inverse_relationship)),
+                    .map(|r| ContextualizedRelationship::new(r, row.inverse_relationship))
+                    .unwrap_or_else(ContextualizedRelationship::plain),
                 issue_id: row.issue_id,
                 issue_summary: row.issue_summary,
                 issue_completed_at: row.issue_completed_at,
                 issue_project_id: row.issue_project_id,
+                issue_blocked: row.issue_blocked,
                 comment: row.comment,
                 created_at: row.created_at,
             })
@@ -124,6 +127,7 @@ impl IssueRelationship {
                 CASE WHEN issue_a.id = $1 THEN issue_b.summary ELSE issue_a.summary END as "issue_summary!",
                 CASE WHEN issue_a.id = $1 THEN issue_b.completed_at ELSE issue_a.completed_at END as issue_completed_at,
                 CASE WHEN issue_a.id = $1 THEN FALSE ELSE TRUE END as "inverse_relationship!",
+                CASE WHEN issue_a.id = $1 THEN issue_b.blocked ELSE issue_a.blocked END as "issue_blocked!",
                 relationship as "relationship: Relationship",
                 comment,
                 issue_relationships.created_at
@@ -140,19 +144,20 @@ impl IssueRelationship {
         Ok(Self {
             relationship: row
                 .relationship
-                .as_ref()
-                .map(|r| ContextualizedRelationship::new(*r, row.inverse_relationship)),
+                .map(|r| ContextualizedRelationship::new(r, row.inverse_relationship))
+                .unwrap_or_else(ContextualizedRelationship::plain),
             issue_id: row.issue_id,
             issue_summary: row.issue_summary,
             issue_completed_at: row.issue_completed_at,
             issue_project_id: row.issue_project_id,
+            issue_blocked: row.issue_blocked,
             comment: row.comment,
             created_at: row.created_at,
         })
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ContextualizedRelationship {
     pub relationship: Option<Relationship>,
     pub is_inverse: bool,

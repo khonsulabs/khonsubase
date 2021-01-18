@@ -226,6 +226,7 @@ enum IssueUpdateError {
     IssueAlreadyUpdated { current_revision_id: Option<i64> },
     ParentNotFound,
     CantCloseBecauseOfChild,
+    CantCloseBecauseBlocked,
     InternalError,
 }
 
@@ -262,6 +263,8 @@ async fn update_issue(
             });
         }
 
+        let mut changed_issue_status = false;
+
         if issue_form.comment.is_some()
             || issue.summary != issue_form.summary
             || issue.description != issue_form.description
@@ -296,8 +299,15 @@ async fn update_issue(
                 issue.description = issue_form.description.clone();
             }
 
+            issue.update_blocked_status(&mut tx).await?;
+
             if issue_form.completed != issue.completed_at.is_some() {
+                if issue.blocked {
+                    return Err(IssueUpdateError::CantCloseBecauseBlocked);
+                }
+
                 let new_value = if issue_form.completed {
+                    // Make sure no children are open
                     let children = IssueQueryBuilder::new()
                         .owned_by(Some(issue.id))
                         .open()
@@ -306,6 +316,7 @@ async fn update_issue(
                     if !children.issues.is_empty() {
                         return Err(IssueUpdateError::CantCloseBecauseOfChild);
                     }
+
                     Some(Utc::now())
                 } else {
                     None
@@ -319,6 +330,7 @@ async fn update_issue(
                 )
                 .await?;
                 issue.completed_at = new_value;
+                changed_issue_status = true;
             }
 
             if issue_form.project_id != issue.project_id {
@@ -348,6 +360,11 @@ async fn update_issue(
             issue.current_revision_id = Some(issue_revision.id);
         }
         issue.save(&mut tx).await?;
+
+        if changed_issue_status {
+            println!("Issue status changed. Updating blocked relationships");
+            tx = Issue::update_blocked_relationships(issue.id, tx).await?;
+        }
 
         issue
     } else {
@@ -395,6 +412,9 @@ pub async fn save_issue(
                         IssueUpdateError::ParentNotFound => "issues-error-parent-not-found",
                         IssueUpdateError::CantCloseBecauseOfChild => {
                             "issues-error-cant-close-child"
+                        }
+                        IssueUpdateError::CantCloseBecauseBlocked => {
+                            "issues-error-cant-close-blocked"
                         }
                         IssueUpdateError::InternalError => "internal-error-saving",
                     }
@@ -454,7 +474,10 @@ pub async fn link_issue(
 
     if let Some(target_id) = target {
         if let Ok(link) = IssueRelationship::find(issue_id, target_id, database::pool()).await {
-            relationship = link.relationship.map(|r| r.to_string());
+            relationship = link
+                .relationship
+                .relationship
+                .map(|_| link.relationship.to_string());
             comment = link.comment;
             existing = true;
         }
