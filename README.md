@@ -1,5 +1,7 @@
 # khonsubase
 
+![GitHub branch checks state](https://img.shields.io/github/checks-status/khonsulabs/khonsubase/main) ![Codecov](https://img.shields.io/codecov/c/github/khonsulabs/khonsubase) ![Twitter Follow](https://img.shields.io/twitter/follow/ectonDev?style=social) ![Twitch Status](https://img.shields.io/twitch/status/ectonDev) 
+
 ## About this Project
 
 Khonsubase is a lightweight project management and knowledgebase collaboration tool written in [rust](https://rust-lang.org/).

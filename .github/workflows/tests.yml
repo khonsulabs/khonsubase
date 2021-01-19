@@ -1,4 +1,7 @@
 name: Rust
+defaults:
+  run:
+    shell: bash
 
 on:
   push:
@@ -73,14 +76,10 @@ jobs:
       - name: Run code coverage
         run: |
           cargo +nightly test --all-features
-          echo "zip 1"
           zip -0 ccov.zip `find . \( -name "server*.gc*" \) -print`;
-          echo "zip 2"
           zip -0 ccov.zip `find . \( -name "database*.gc*" \) -print`;
           rm -rf target
-          echo "grcov"
           grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --ignore "/target" -o lcov.info;
-          echo "codecov script"
           bash <(curl -s https://codecov.io/bash) -f lcov.info;
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
