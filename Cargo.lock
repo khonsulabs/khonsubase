@@ -2292,6 +2292,8 @@ dependencies = [
  "include_dir",
  "passwords",
  "percent-encoding",
+ "pest",
+ "pest_derive",
  "rocket",
  "rocket_contrib",
  "serde",

@@ -1,0 +1,34 @@
+// Literals
+number = @{ "-"? ~ ASCII_DIGIT+ ~ decimal? }
+decimal = { "." ~ ASCII_DIGIT+ }
+
+quoted_string = { "\"" ~ string ~ "\"" }
+string = @{ (string_escape | string_character)* }
+string_escape = { "\\" ~ ANY }
+string_character = { !("\"") ~ ANY }
+
+// Terms
+identifier = { ASCII_ALPHA+ }
+lookup = { identifier ~ (WHITE_SPACE* ~ "." ~ WHITE_SPACE* ~ identifier)* }
+term = { not_term | lookup | quoted_string | number | inner_expression }
+not_term = { "not" ~ WHITE_SPACE+ ~ term }
+inner_expression = _{ "(" ~ expression ~ ")" }
+
+// Expressions
+is = { "is" }
+is_not = { "is" ~ WHITE_SPACE+ ~ "not" }
+comparison_operator = _{ is_not | is }
+comparison_expression = { term ~ (WHITE_SPACE+ ~ comparison_operator ~ WHITE_SPACE+ ~ term)* }
+
+and = { "and" }
+or = { "or" }
+logical_operator = _{ and | or }
+logical_expression = { comparison_expression ~ (WHITE_SPACE+ ~ logical_operator ~ WHITE_SPACE+ ~ comparison_expression)* }
+
+expression = { logical_expression }
+
+// Query
+query = _{ expression ~ (WHITE_SPACE+ ~ returning)? }
+
+returning = { "returning" ~ WHITE_SPACE+ ~ return_field ~ (WHITE_SPACE* ~ "," ~ WHITE_SPACE* ~ return_field)* }
+return_field = _{ term }
