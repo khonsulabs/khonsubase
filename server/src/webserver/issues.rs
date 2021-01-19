@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-use rocket::{http::Status, request::Form, response::Redirect};
+use rocket::{http::Status, request::Form};
 use rocket_contrib::templates::{tera, Template};
 use serde::{Deserialize, Serialize};
 
@@ -204,8 +204,8 @@ pub async fn edit_issue(
             Err(Failure::forbidden())
         }
     } else {
-        Err(Failure::Redirect(Redirect::to(
-            "/signin?origin=/issues/new",
+        Err(Failure::redirect_to_signin(Some(
+            &request.current_path_and_query,
         )))
     }
 }
@@ -442,8 +442,13 @@ pub async fn save_issue(
         } else {
             Err(Failure::forbidden())
         }
+    } else if let Some(id) = issue_form.issue_id {
+        Err(Failure::redirect_to_signin(Some(&format!(
+            "/issue/{}/edit",
+            id
+        ))))
     } else {
-        Err(Failure::redirect("/signin?origin=/issues/new"))
+        Err(Failure::redirect_to_signin(Some("/issues/new")))
     }
 }
 
