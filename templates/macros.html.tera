@@ -2,11 +2,17 @@
 <a href="/user/{{ user.id }}"><img src="/user/{{ user.id }}/avatar.jpg?size=32" class="inline-avatar" /> {% if user.display_name %}{{ user.display_name }}{% else %}{{ user.username }}{% endif %}</a>
 {% endmacro render_user %}
 
+{% macro render_date(value, language) %}
+<span class="datetime" data-iso-date="{{ value | date(format = "%+") }}">{{ value | date(format=localize(key = "datetime-format", language = language)) }}
+{% endmacro render_date %}
+
 {% macro username(user) %}{% if user.display_name %}{{ user.display_name }} (@{{ user.username }}){% else %}@{{ user.username }}{% endif %}{% endmacro username %}
 
-{% macro issue_summary(summary, completed_at) %}
+{% macro issue_summary(summary, completed_at, blocked) %}
 {% if completed_at %}
 <span class="badge bg-secondary">{{ localize(key = "issue-completed", language = request.language) }}</span>
+{% elif blocked %}
+<span class="badge bg-warning">{{ localize(key = "issue-blocked", language = request.language) }}</span>
 {% else %}
 <span class="badge bg-success">{{ localize(key = "issue-new", language = request.language) }}</span>
 {% endif %}

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,7 @@ pub struct IssueView {
     pub project_slug: Option<String>,
     pub project_name: Option<String>,
     pub parent_id: Option<i64>,
+    pub blocked: bool,
     pub current_revision_id: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
@@ -34,6 +35,7 @@ impl IssueView {
                 projects.slug as "project_slug?",
                 projects.name as "project_name?",
                 parent_id, 
+                blocked,
                 current_revision_id, 
                 issues.created_at, 
                 completed_at 
@@ -58,6 +60,7 @@ impl IssueView {
             project_slug: row.project_slug,
             project_name: row.project_name,
             parent_id: row.parent_id,
+            blocked: row.blocked,
             current_revision_id: row.current_revision_id,
             created_at: row.created_at,
             completed_at: row.completed_at,
@@ -74,6 +77,7 @@ pub struct Issue {
     pub project_id: Option<i64>,
     pub parent_id: Option<i64>,
     pub current_revision_id: Option<i64>,
+    pub blocked: bool,
     pub created_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
 }
@@ -93,6 +97,7 @@ impl Issue {
             parent_id,
             id: 0,
             project_id,
+            blocked: false,
             current_revision_id: None,
             created_at: Utc::now(),
             completed_at: None,
@@ -100,14 +105,14 @@ impl Issue {
     }
 
     pub async fn load(issue_id: i64) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
     }
 
     pub async fn load_for_update(
         issue_id: i64,
         transaction: &mut Transaction<'_, sqlx::Postgres>,
     ) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, current_revision_id, created_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
     }
 
     pub async fn save<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
@@ -122,14 +127,16 @@ impl Issue {
                     summary, 
                     description, 
                     parent_id,
+                    blocked,
                     current_revision_id,
                     completed_at
-                   ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at"#,
+                   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at"#,
                 self.author_id,
                 self.project_id,
                 &self.summary,
                 self.description.as_ref(),
                 self.parent_id,
+                self.blocked,
                 self.current_revision_id,
                 self.completed_at,
             )
@@ -146,14 +153,16 @@ impl Issue {
                     description = $3,
                     project_id = $4,
                     parent_id = $5,
-                    current_revision_id = $6,
-                    completed_at = $7
-                   WHERE id = $8"#,
+                    blocked = $6,
+                    current_revision_id = $7,
+                    completed_at = $8
+                   WHERE id = $9"#,
                 self.author_id,
                 &self.summary,
                 self.description.as_ref(),
                 self.project_id,
                 self.parent_id,
+                self.blocked,
                 self.current_revision_id,
                 self.completed_at,
                 self.id,
@@ -174,7 +183,7 @@ impl Issue {
                 UNION ALL
                 SELECT parent.* FROM issues parent JOIN issue_hierarchy ON parent.id = issue_hierarchy.parent_id
             )
-            SELECT id as "id!", author_id as "author_id!", project_id, summary as "summary!", description, parent_id, current_revision_id, created_at as "created_at!", completed_at FROM issue_hierarchy"#,
+            SELECT id as "id!", author_id as "author_id!", project_id, summary as "summary!", description, parent_id, blocked as "blocked!", current_revision_id, created_at as "created_at!", completed_at FROM issue_hierarchy"#,
             issue_id,
         ).fetch_all(crate::pool()).await? {
             issues.insert(issue.id, issue);
@@ -196,6 +205,71 @@ impl Issue {
         }
 
         Ok(ordered_issues)
+    }
+
+    pub async fn update_blocked_status(
+        &mut self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+    ) -> sqlx::Result<()> {
+        self.blocked = match Self::update_blocked_status_for_id(self.id, tx).await {
+            Ok(blocked) => blocked,
+            Err(sqlx::Error::RowNotFound) => return Ok(()),
+            Err(other) => return Err(other),
+        };
+
+        Ok(())
+    }
+
+    pub async fn update_blocked_status_for_id(
+        id: i64,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+    ) -> sqlx::Result<bool> {
+        sqlx::query!(
+            "UPDATE issues SET blocked = issue_blocked_statuses.blocked
+            FROM issue_blocked_statuses
+            WHERE issues.id = issue_blocked_statuses.id AND issues.id = $1 AND issues.blocked <> issue_blocked_statuses.blocked
+            RETURNING issues.blocked",
+            id
+        )
+            .fetch_one(tx)
+            .await
+            .map(|row| row.blocked)
+    }
+
+    pub async fn update_blocked_relationships(
+        issue_id: i64,
+        mut tx: Transaction<'_, sqlx::Postgres>,
+    ) -> sqlx::Result<Transaction<'_, sqlx::Postgres>> {
+        let mut already_updated = HashSet::new();
+        let mut issues_to_update = vec![issue_id];
+        while let Some(issue_id) = issues_to_update.pop() {
+            if already_updated.contains(&issue_id) {
+                continue;
+            }
+            already_updated.insert(issue_id);
+
+            for row in sqlx::query!(
+                r#"SELECT 
+                    blocked.id,
+                    blocked.blocked
+                   FROM issue_relationships 
+                   INNER JOIN issues blocked ON blocked.id = issue_relationships.issue_b
+                   WHERE issue_a = $1 AND relationship = 1"#,
+                issue_id,
+            )
+            .fetch_all(&mut tx)
+            .await?
+            {
+                println!("Updating {}", row.id);
+                match Self::update_blocked_status_for_id(row.id, &mut tx).await {
+                    Ok(_) => issues_to_update.push(row.id),
+                    Err(sqlx::Error::RowNotFound) => {}
+                    Err(other) => return Err(other),
+                };
+            }
+        }
+
+        Ok(tx)
     }
 }
 
@@ -325,6 +399,7 @@ impl IssueQueryBuilder {
                 description, 
                 project_id,
                 parent_id, 
+                blocked,
                 current_revision_id,
                 created_at, 
                 completed_at,
@@ -348,6 +423,7 @@ impl IssueQueryBuilder {
                         description: row.get("description"),
                         project_id: row.get("project_id"),
                         parent_id: row.get("parent_id"),
+                        blocked: row.get("blocked"),
                         current_revision_id: row.get("current_revision_id"),
                         created_at: row.get("created_at"),
                         completed_at: row.get("completed_at"),
