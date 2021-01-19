@@ -164,7 +164,12 @@ mod tests {
             Query {
                 expression: Expression::Is(
                     Box::new(Expression::Term(Term::Lookup(vec!["id".to_owned()]))),
-                    Box::new(Expression::Term(Term::Literal(Literal::Integer(5))))
+                    Box::new(Expression::Term(Term::Expression(Box::new(
+                        Expression::And(
+                            Box::new(Expression::Term(Term::Literal(Literal::Integer(5)))),
+                            Box::new(Expression::Term(Term::Literal(Literal::Integer(1))))
+                        )
+                    )))),
                 ),
                 returning: Default::default()
             }
@@ -381,7 +386,9 @@ mod tests {
             rule: Rule::term,
             tokens: [
                 term(0, 3, [
-                    identifier(0, 3)
+                    lookup(0, 3, [
+                        identifier(0, 3)
+                    ])
                 ])
             ]
         };
@@ -430,11 +437,11 @@ mod tests {
             input: r#"foo and bar"#,
             rule: Rule::logical_expression,
             tokens: [
-                logical_expression(0, 12, [
+                logical_expression(0, 11, [
                     comparison_expression(0,3, [
                         term(0,3, [lookup(0,3, [identifier(0,3)])]),
                     ]),
-                    and(4, 6),
+                    and(4, 7),
                     comparison_expression(8,11, [
                         term(8,11, [lookup(8,11, [identifier(8,11)])]),
                     ]),
