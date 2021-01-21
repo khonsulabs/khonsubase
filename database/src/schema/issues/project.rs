@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use migrations::sqlx::{self, Done, FromRow, Transaction};
 
 use crate::{DatabaseError, SqlxResultExt};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Project {
@@ -86,6 +87,10 @@ impl Project {
     pub async fn list() -> sqlx::Result<Vec<Self>> {
         sqlx::query_as!(Self, "SELECT id, slug, name, description, owner_id, created_at FROM projects ORDER BY lower(name)")
             .fetch_all(crate::pool()).await
+    }
+
+    pub async fn list_as_map() -> sqlx::Result<HashMap<i64, Self>> {
+        Ok(Self::list().await?.into_iter().map(|p| (p.id, p)).collect())
     }
 
     pub async fn save<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(

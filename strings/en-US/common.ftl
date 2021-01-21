@@ -11,3 +11,6 @@ internal-error-saving = An error occurred saving to the database. Please try aga
 
 view-profile = View Profile
 change-password = Change Password
+
+empty-value = &lt;none&gt;
+deleted-value = &lt;gone&gt;

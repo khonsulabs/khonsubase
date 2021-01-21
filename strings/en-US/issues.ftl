@@ -47,3 +47,11 @@ issue-relationship-preceded-summary = Follows
 issue-relationship-causes-summary = Is source of
 issue-relationship-caused-summary = Caused by
 link-comment = Comment
+
+issue-update-completed = marked this issue as completed
+issue-update-reopened = reopened this issue
+issue-update-generic = changed {$property} from {$old} to {$new}
+issue-update-changed-project = moved projects from {$old} to {$new}
+issue-update-changed-description = updated the description
+
+issue-update-see-changes = See Changes

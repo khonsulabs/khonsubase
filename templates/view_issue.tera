@@ -108,36 +108,72 @@
 {% if loop.first %}
 <h2>{{ localize(key = "issue-timeline", language = request.language) }}</h2>
 {% endif %}
-<div class="m-2 p-2 border rounded">
-    <h4>{{ localize(key = "issue-updated-summmary", user = macros::render_user(user = issue.author), date = macros::render_date(value = entry.created_at, language = request.language),
-        language = request.language) }}</h4>
-    {% for property, change in entry.changes %}
-    {% if loop.first %}
-    <table class="table">
-        <thead>
-        <tr>
-            <th>{{ localize(key = "issue-change-property", language = request.language) }}</th>
-            <th>{{ localize(key = "issue-change-old-value", language = request.language) }}</th>
-            <th>{{ localize(key = "issue-change-new-value", language = request.language) }}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% endif %}
-        <tr>
-            <td>{{ property }}</td>
-            <td>{{ change.old_value | as_str }}</td>
-            <td>{{ change.new_value | as_str }}</td>
-        </tr>
-        {% if loop.first %}
-        </tbody>
-    </table>
-    {% endif %}
-    {% endfor %}
-    {% if entry.comment %}
-    <div class="container">
-        {{ entry.comment | render_markdown }}
+<div class="card m-2">
+    <div class="card-header">
+        {{ localize(key = "issue-updated-summmary", user = macros::render_user(user = issue.author), date = macros::render_date(value = entry.created_at, language = request.language),
+            language = request.language) }}
     </div>
-    {% endif %}
+    <div class="card-body">
+        {% for property, change in entry.changes %}
+        {% if loop.first %}
+        <ul>
+        {% endif %}
+            <li>
+                {% if property == "completed_at" %}
+                    {% if change.new_value %}
+                        {{ localize(key = "issue-update-completed", language = request.language) }}
+                    {% else %}
+                        {{ localize(key = "issue-update-reopened", language = request.language) }}
+                    {% endif %}
+                {% elif property == "project_id" %}
+                    {% if change.old_value %}
+                        {% set old_value = projects[change.old_value].name | default(value = localize(key = "deleted-value", language = request.language)) | as_str %}
+                    {% else %}
+                        {% set old_value = localize(key = "empty-value", language = request.language) %}
+                    {% endif %}
+                    {% if change.new_value %}
+                        {% set new_value = projects[change.new_value].name | default(value = localize(key = "deleted-value", language = request.language)) | as_str %}
+                    {% else %}
+                        {% set new_value = localize(key = "empty-value", language = request.language) %}
+                    {% endif %}
+
+                    {{ localize(key = "issue-update-changed-project", property = property, old = old_value, new = new_value, language = request.language) }}
+                {% elif property == "description" %}
+                    {{ localize(key = "issue-update-changed-description", language = request.language) }}
+                    <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-description-{{entry.id}}" aria-expanded="false" aria-controls="collapseExample">
+                        {{ localize(key = "issue-update-see-changes", language = request.language) }}
+                    </button>
+                    <div class="collapse" id="collapse-description-{{entry.id}}">
+                        <div class="container p-2 d-flex">
+                            <div class="flex-fill p-2 border-end">
+                                {{ change.old_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
+                            </div>
+                            <div class="flex-fill p-2">
+                                {{ change.new_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    {% set old_value = change.old_value | default(value = localize(key = "empty-value", language = request.language)) | as_str %}
+                    {% set new_value = change.new_value | default(value = localize(key = "empty-value", language = request.language)) | as_str %}
+                    {% if property == "parent_id" %}
+                        {% set property_name = localize(key = "issue-parent", language = request.language) %}
+                    {% else %}
+                        {% set property_name = localize(key = "issue-" ~ property, language = request.language) %}
+                    {% endif %}
+                    {{ localize(key = "issue-update-generic", property = property_name, old = old_value, new = new_value, language = request.language) }}
+                {% endif %}
+            </li>
+        {% if loop.last %}
+        </ul>
+        {% endif %}
+        {% endfor %}
+        {% if entry.comment %}
+        <div class="container">
+            {{ entry.comment | render_markdown }}
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endfor %}
 {% if editable %}

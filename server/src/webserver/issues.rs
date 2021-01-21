@@ -83,10 +83,11 @@ struct ViewIssueContext {
     timeline: IssueTimeline,
     response: IssueQueryResults,
     editable: bool,
+    projects: HashMap<i64, Project>,
 }
 
 async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Template> {
-    let (issue, parents, relationships, entries, response) = futures::try_join!(
+    let (issue, parents, relationships, entries, response, projects) = futures::try_join!(
         IssueView::load(issue_id),
         Issue::all_parents(issue_id),
         IssueRelationship::list_for(issue_id, database::pool()),
@@ -94,6 +95,7 @@ async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Templ
         IssueQueryBuilder::new()
             .owned_by(Some(issue_id))
             .query(database::pool()),
+        Project::list_as_map()
     )?;
     let timeline = IssueTimeline { entries };
     let editable = can_edit_issue(&request, &issue);
@@ -107,6 +109,7 @@ async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Templ
             timeline,
             response,
             editable,
+            projects,
         },
     ))
 }
