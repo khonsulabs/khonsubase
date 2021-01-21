@@ -49,6 +49,7 @@
 {% endblock extrahead %}
 {% block afterbody %}
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script src="/static/js/issue_editor.js"></script>
     <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function () {
             const descriptionEditor = new toastui.Editor.factory({
@@ -61,7 +62,9 @@
                     change: function() {
                         document.querySelector('#description').value = descriptionEditor.getMarkdown();
                     }
-                }
+                },
+                useDefaultHTMLSanitizer: false,
+                customHTMLSanitizer: html_sanitizer,
             });
         });
     </script>

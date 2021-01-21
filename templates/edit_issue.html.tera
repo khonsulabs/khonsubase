@@ -82,23 +82,27 @@
 {% endblock extrahead %}
 {% block afterbody %}
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script src="/static/js/issue_editor.js"></script>
     <script type="text/javascript">
+        var descriptionEditor;
         document.addEventListener('DOMContentLoaded', function () {
-            const descriptionEditor = new toastui.Editor.factory({
+            descriptionEditor = new toastui.Editor({
                 el: document.querySelector("#description_editor"),
                 previewStyle: 'vertical',
                 previewHighlight: true,
                 usageStatistics: false,
                 initialValue: document.querySelector('#description').value,
                 events: {
-                    change: function() {
+                    change: function () {
                         document.querySelector('#description').value = descriptionEditor.getMarkdown();
                     }
-                }
+                },
+                useDefaultHTMLSanitizer: false,
+                customHTMLSanitizer: html_sanitizer,
             });
 
             {% if issue_id %}
-            const commentEditor = new toastui.Editor.factory({
+            const commentEditor = new toastui.Editor({
                 el: document.querySelector("#comment_editor"),
                 previewStyle: 'vertical',
                 previewHighlight: true,
@@ -108,7 +112,9 @@
                     change: function() {
                         document.querySelector('#comment').value = commentEditor.getMarkdown();
                     }
-                }
+                },
+                useDefaultHTMLSanitizer: false,
+                customHTMLSanitizer: html_sanitizer,
             });
             {% endif %}
         });
