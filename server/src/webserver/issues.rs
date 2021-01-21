@@ -21,6 +21,7 @@ use crate::{
     },
     Optionable,
 };
+use database::schema::issues::Relationship;
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -363,7 +364,7 @@ async fn update_issue(
 
         if changed_issue_status {
             println!("Issue status changed. Updating blocked relationships");
-            tx = Issue::update_blocked_relationships(issue.id, tx).await?;
+            tx = Issue::update_blocked_relationships(&[issue.id], tx).await?;
         }
 
         issue
@@ -517,7 +518,11 @@ pub async fn unlink_issue(
     let issue = IssueView::load(issue_id).await?;
 
     if can_edit_issue(&request, &issue) {
-        IssueRelationship::unlink(issue_id, other_issue_id, database::pool()).await?;
+        let mut tx = database::pool().begin().await?;
+        IssueRelationship::unlink(issue_id, other_issue_id, &mut tx).await?;
+        tx = Issue::update_blocked_relationships(&[issue_id, other_issue_id], tx).await?;
+        tx.commit().await?;
+
         Err(Failure::redirect(format!("/issue/{}", issue_id)))
     } else {
         Err(Failure::forbidden())
@@ -529,6 +534,24 @@ pub struct LinkIssueForm {
     target: i64,
     relationship: String,
     comment: Option<String>,
+}
+
+async fn link_issues(
+    issue_a: i64,
+    issue_b: i64,
+    relationship: Option<Relationship>,
+    comment: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    let mut tx = database::pool().begin().await?;
+    IssueRelationship::link(issue_a, issue_b, relationship, comment, database::pool()).await?;
+
+    if matches!(relationship, Some(Relationship::Blocks)) {
+        tx = Issue::update_blocked_relationships(&[issue_a], tx).await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
 }
 
 #[post("/issue/<issue_id>/link", data = "<form>")]
@@ -550,7 +573,7 @@ pub async fn link_issue_post(
             (issue_id, form.target)
         };
 
-        IssueRelationship::link(
+        link_issues(
             issue_a,
             issue_b,
             link.relationship,
@@ -558,9 +581,9 @@ pub async fn link_issue_post(
                 .as_ref()
                 .map(|comment| comment.trim().into_option())
                 .flatten(),
-            database::pool(),
         )
         .await?;
+
         Err(Failure::redirect(format!("/issue/{}", issue_id)))
     } else {
         Err(Failure::forbidden())

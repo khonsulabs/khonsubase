@@ -236,17 +236,19 @@ impl Issue {
             .map(|row| row.blocked)
     }
 
-    pub async fn update_blocked_relationships(
-        issue_id: i64,
-        mut tx: Transaction<'_, sqlx::Postgres>,
-    ) -> sqlx::Result<Transaction<'_, sqlx::Postgres>> {
+    pub async fn update_blocked_relationships<'a, 'e>(
+        issue_ids: &'a [i64],
+        mut tx: Transaction<'e, sqlx::Postgres>,
+    ) -> sqlx::Result<Transaction<'e, sqlx::Postgres>> {
         let mut already_updated = HashSet::new();
-        let mut issues_to_update = vec![issue_id];
+        let mut issues_to_update = issue_ids.to_vec();
         while let Some(issue_id) = issues_to_update.pop() {
             if already_updated.contains(&issue_id) {
                 continue;
             }
             already_updated.insert(issue_id);
+
+            sqlx::query!("UPDATE issues SET blocked = issue_blocked_statuses.blocked FROM issue_blocked_statuses WHERE issue_blocked_statuses.id = issues.id").execute(&mut tx).await?;
 
             for row in sqlx::query!(
                 r#"SELECT 
