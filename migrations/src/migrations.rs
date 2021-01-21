@@ -4,6 +4,7 @@ mod migration_0003_issue_comments;
 mod migration_0004_projects;
 mod migration_0005_relations;
 mod migration_0006_blocking;
+mod migration_0007_blocking_fix;
 
 use crate::connection::pool;
 use sqlx_simple_migrator::{Migration, MigrationError};
@@ -16,6 +17,7 @@ pub fn migrations() -> Vec<Migration> {
         migration_0004_projects::migration(),
         migration_0005_relations::migration(),
         migration_0006_blocking::migration(),
+        migration_0007_blocking_fix::migration(),
     ]
 }
 
