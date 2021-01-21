@@ -3,7 +3,7 @@
 {% endmacro render_user %}
 
 {% macro render_date(value, language) %}
-<span class="datetime" data-iso-date="{{ value | date(format = "%+") }}">{{ value | date(format=localize(key = "datetime-format", language = language)) }}
+<span class="datetime" data-iso-date="{{ value | date(format = "%+") }}">{{ value | format_date(format=localize(key = "datetime-format", language = language)) }}
 {% endmacro render_date %}
 
 {% macro username(user) %}{% if user.display_name %}{{ user.display_name }} (@{{ user.username }}){% else %}@{{ user.username }}{% endif %}{% endmacro username %}

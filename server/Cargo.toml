@@ -28,3 +28,4 @@ time-02 = { package = "time", version = "0.2" }
 comrak = "0.9"
 identicon-rs = "2"
 percent-encoding = "2"
+chrono-tz = "0.5"

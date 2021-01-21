@@ -17,9 +17,11 @@ use serde::{Deserialize, Serialize};
 use database::sqlx;
 use localization::UserLanguage;
 
-use crate::configuration::{Configuration, ConfigurationManager, SiteName};
+use crate::configuration::{Configuration, ConfigurationManager, SiteDefaultTimezone, SiteName};
 
 use self::auth::{SessionData, SessionId};
+use database::sqlx::types::chrono::{DateTime, Utc};
+use std::collections::hash_map::RandomState;
 
 mod articles;
 mod auth;
@@ -49,6 +51,10 @@ fn rocket_server() -> rocket::Rocket {
             engines
                 .tera
                 .register_filter("language_code", localization::LanguageCode);
+            engines
+                .tera
+                .register_filter("format_date", TeraDateFormatter);
+
             engines.tera.register_filter(
                 "relationship_summary_key",
                 issues::RelationshipSummaryKeyFilter,
@@ -125,6 +131,29 @@ where
     }
 }
 
+pub struct TeraDateFormatter;
+
+impl tera::Filter for TeraDateFormatter {
+    fn filter(
+        &self,
+        value: &Value,
+        args: &HashMap<String, Value, RandomState>,
+    ) -> tera::Result<Value> {
+        let date = serde_json::from_value::<DateTime<Utc>>(value.clone())?;
+        let translated = date.with_timezone(&SiteDefaultTimezone::get_for_chrono());
+
+        let format = args
+            .get("format")
+            .expect("require parameter format")
+            .as_str()
+            .unwrap();
+
+        let formatted = translated.format(&format).to_string();
+
+        Ok(Value::String(formatted))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestData {
     pub language: String,
@@ -132,6 +161,7 @@ pub struct RequestData {
     pub current_query: Option<String>,
     pub current_path_and_query: String,
     pub session: Option<SessionData>,
+    pub time_zone: String,
 }
 
 #[derive(Debug)]
@@ -158,12 +188,17 @@ impl RequestData {
             current_path_and_query += query;
         }
 
+        let time_zone = ConfigurationManager::shared()
+            .get::<SiteDefaultTimezone>()
+            .unwrap();
+
         Self {
             language: language.0,
             current_path: path.path,
             current_query: path.query,
             session,
             current_path_and_query,
+            time_zone,
         }
     }
 
