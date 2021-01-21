@@ -262,7 +262,6 @@ impl Issue {
             .fetch_all(&mut tx)
             .await?
             {
-                println!("Updating {}", row.id);
                 match Self::update_blocked_status_for_id(row.id, &mut tx).await {
                     Ok(_) => issues_to_update.push(row.id),
                     Err(sqlx::Error::RowNotFound) => {}

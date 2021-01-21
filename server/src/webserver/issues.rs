@@ -363,7 +363,6 @@ async fn update_issue(
         issue.save(&mut tx).await?;
 
         if changed_issue_status {
-            println!("Issue status changed. Updating blocked relationships");
             tx = Issue::update_blocked_relationships(&[issue.id], tx).await?;
         }
 
