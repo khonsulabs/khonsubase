@@ -1,18 +1,21 @@
-function html_sanitizer(html) {
-    const root = document.createElement('div');
+function html_sanitizer(prefix) {
+    const pattern = new RegExp(prefix + '(\\d+)', 'g');
+    return function (html) {
+        const root = document.createElement('div');
 
-    if (typeof html === 'string' || html instanceof String) {
-        html = html.replace(/<!--[\s\S]*?-->/g, '');
-        root.innerHTML = html;
-    } else {
-        root.appendChild(html);
-    }
+        if (typeof html === 'string' || html instanceof String) {
+            html = html.replace(/<!--[\s\S]*?-->/g, '');
+            root.innerHTML = html;
+        } else {
+            root.appendChild(html);
+        }
 
-    sanitize_node(root, false);
+        sanitize_node(root, false);
 
-    let result = root.innerHTML.replaceAll(/KB-(\d+)/ig, "<a href=\"/issue/$1\">$&</a>");
-    root.remove();
-    return result;
+        let result = root.innerHTML.replaceAll(pattern, "<a href=\"/issue/$1\">$&</a>");
+        root.remove();
+        return result;
+    };
 }
 
 function sanitize_node(node, sanitize_self) {

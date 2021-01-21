@@ -64,7 +64,7 @@
                     }
                 },
                 useDefaultHTMLSanitizer: false,
-                customHTMLSanitizer: html_sanitizer,
+                customHTMLSanitizer: html_sanitizer({{ issue_prefix() | json_encode | safe }}),
             });
         });
     </script>

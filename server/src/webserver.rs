@@ -1,4 +1,10 @@
-use std::{collections::HashMap, convert::TryInto, env, marker::PhantomData, path::PathBuf};
+use std::{
+    collections::{hash_map::RandomState, HashMap},
+    convert::TryInto,
+    env,
+    marker::PhantomData,
+    path::PathBuf,
+};
 
 use comrak::ComrakOptions;
 use percent_encoding::{utf8_percent_encode, AsciiSet};
@@ -14,14 +20,17 @@ use rocket_contrib::{
 };
 use serde::{Deserialize, Serialize};
 
-use database::sqlx;
+use database::{
+    sqlx,
+    sqlx::types::chrono::{DateTime, Utc},
+};
 use localization::UserLanguage;
 
-use crate::configuration::{Configuration, ConfigurationManager, SiteDefaultTimezone, SiteName};
+use crate::configuration::{
+    Configuration, ConfigurationManager, SiteDefaultTimezone, SiteIssuePrefix, SiteName,
+};
 
 use self::auth::{SessionData, SessionId};
-use database::sqlx::types::chrono::{DateTime, Utc};
-use std::collections::hash_map::RandomState;
 
 mod articles;
 mod auth;
@@ -65,6 +74,10 @@ fn rocket_server() -> rocket::Rocket {
             engines
                 .tera
                 .register_function("site_name", TeraConfiguration::<SiteName>::default());
+            engines.tera.register_function(
+                "issue_prefix",
+                TeraConfiguration::<SiteIssuePrefix>::default(),
+            );
         }))
         .mount(
             "/",
