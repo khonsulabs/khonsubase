@@ -8,11 +8,13 @@ use serde::{de::DeserializeOwned, Serialize};
 
 pub use self::{
     session_maximum_days::SessionMaximumDays, site_default_timezone::SiteDefaultTimezone,
-    site_name::SiteName, site_primary_locale::SitePrimaryLocale,
+    site_issue_prefix::SiteIssuePrefix, site_name::SiteName,
+    site_primary_locale::SitePrimaryLocale,
 };
 
 mod session_maximum_days;
 mod site_default_timezone;
+mod site_issue_prefix;
 mod site_name;
 mod site_primary_locale;
 

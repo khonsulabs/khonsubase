@@ -4,6 +4,7 @@ use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
 use super::{auth::SessionId, FullPathAndQuery, RequestData};
+use crate::configuration::{Configuration, SiteIssuePrefix};
 
 pub fn find_article(slug: &str) -> Option<Article> {
     if slug == "home" {
@@ -61,7 +62,43 @@ async fn render_article(
             slug: article.slug,
             request: RequestData::new(language, path, session).await,
             view_only: true,
-            markdown: article.body,
+            markdown: preformat_markdown(&article.body),
         },
     )
+}
+
+pub fn preformat_markdown(markdown: &str) -> String {
+    let mut formatted = String::with_capacity(markdown.len());
+    let issue_prefix = SiteIssuePrefix::get().unwrap();
+    let mut parts = markdown.split(&issue_prefix);
+    formatted.push_str(parts.next().unwrap());
+
+    for part in parts {
+        // Find the first non-ascii-digit
+        let mut number_length = 0usize;
+        for c in part.chars() {
+            if c.is_ascii_digit() {
+                number_length += 1;
+            } else {
+                break;
+            }
+        }
+
+        if number_length > 0 {
+            let number = &part[0..number_length];
+            let remaining_part = &part[number_length..];
+            formatted.push('[');
+            formatted.push_str(&issue_prefix);
+            formatted.push_str(number);
+            formatted.push_str("](/issue/");
+            formatted.push_str(number);
+            formatted.push(')');
+            formatted.push_str(remaining_part);
+        } else {
+            formatted.push_str(&issue_prefix);
+            formatted.push_str(part);
+        }
+    }
+
+    formatted
 }

@@ -223,11 +223,11 @@ struct MarkdownFilter;
 
 impl tera::Filter for MarkdownFilter {
     fn filter(&self, markdown_source: &Value, _: &HashMap<String, Value>) -> tera::Result<Value> {
-        let markdown = markdown_source.as_str().ok_or_else(|| {
+        let markdown = articles::preformat_markdown(markdown_source.as_str().ok_or_else(|| {
             tera::Error::msg("Value passed to markdown filter needs to be a string")
-        })?;
+        })?);
         Ok(Value::String(comrak::markdown_to_html(
-            markdown,
+            &markdown,
             &ComrakOptions::default(),
         )))
     }
