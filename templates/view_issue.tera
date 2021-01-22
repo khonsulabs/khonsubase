@@ -25,7 +25,7 @@
             <a href="/project/{{ issue.project_slug }}" class="link-secondary">{{ issue.project_name }}</a>
             -
             {% endif %}
-            {{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at, blocked = issue.blocked) }}
+            {{ macros::issue_summary(summary = issue.summary, completed_at = issue.completed_at, started_at = issue.started_at, blocked = issue.blocked) }}
         </h1>
     </div>
     {% if editable %}
@@ -92,7 +92,7 @@
                     {% set relationship_key = relationship.relationship | relationship_summary_key %}
                     {{ localize(key = relationship_key, language = request.language) }}
                 </td>
-                <td><a href="/issue/{{ relationship.issue_id }}">{{ macros::issue_summary(summary = relationship.issue_summary, completed_at = relationship.issue_completed_at, blocked = relationship.issue_blocked) }}</a></td>
+                <td><a href="/issue/{{ relationship.issue_id }}">{{ macros::issue_summary(summary = relationship.issue_summary, started_at = relationship.issue_started_at, completed_at = relationship.issue_completed_at, blocked = relationship.issue_blocked) }}</a></td>
                 <td>{{ relationship.comment }}</td>
             </tr>
         {% endfor %}
@@ -124,6 +124,12 @@
                         {{ localize(key = "issue-update-completed", language = request.language) }}
                     {% else %}
                         {{ localize(key = "issue-update-reopened", language = request.language) }}
+                    {% endif %}
+                {% elif property == "started_at" %}
+                    {% if change.new_value %}
+                        {{ localize(key = "issue-update-started", language = request.language) }}
+                    {% else %}
+                        {{ localize(key = "issue-update-stopped", language = request.language) }}
                     {% endif %}
                 {% elif property == "project_id" %}
                     {% if change.old_value %}

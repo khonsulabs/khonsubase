@@ -19,6 +19,7 @@ pub struct IssueView {
     pub blocked: bool,
     pub current_revision_id: Option<i64>,
     pub created_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -38,6 +39,7 @@ impl IssueView {
                 blocked,
                 current_revision_id, 
                 issues.created_at, 
+                started_at,
                 completed_at 
                FROM issues
                INNER JOIN accounts ON issues.author_id = accounts.id 
@@ -63,6 +65,7 @@ impl IssueView {
             blocked: row.blocked,
             current_revision_id: row.current_revision_id,
             created_at: row.created_at,
+            started_at: row.started_at,
             completed_at: row.completed_at,
         })
     }
@@ -79,6 +82,7 @@ pub struct Issue {
     pub current_revision_id: Option<i64>,
     pub blocked: bool,
     pub created_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -101,18 +105,19 @@ impl Issue {
             current_revision_id: None,
             created_at: Utc::now(),
             completed_at: None,
+            started_at: None,
         }
     }
 
     pub async fn load(issue_id: i64) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, started_at, completed_at FROM issues WHERE id = $1", issue_id).fetch_one(crate::pool()).await
     }
 
     pub async fn load_for_update(
         issue_id: i64,
         transaction: &mut Transaction<'_, sqlx::Postgres>,
     ) -> sqlx::Result<Self> {
-        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
+        sqlx::query_as!(Issue, "SELECT id, author_id, project_id, summary, description, parent_id, blocked, current_revision_id, created_at, started_at, completed_at FROM issues WHERE id = $1 FOR UPDATE", issue_id).fetch_one(transaction).await
     }
 
     pub async fn save<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
@@ -129,8 +134,9 @@ impl Issue {
                     parent_id,
                     blocked,
                     current_revision_id,
+                    started_at,
                     completed_at
-                   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at"#,
+                   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, created_at"#,
                 self.author_id,
                 self.project_id,
                 &self.summary,
@@ -138,6 +144,7 @@ impl Issue {
                 self.parent_id,
                 self.blocked,
                 self.current_revision_id,
+                self.started_at,
                 self.completed_at,
             )
             .fetch_one(executor)
@@ -155,8 +162,9 @@ impl Issue {
                     parent_id = $5,
                     blocked = $6,
                     current_revision_id = $7,
-                    completed_at = $8
-                   WHERE id = $9"#,
+                    started_at = $8,
+                    completed_at = $9
+                   WHERE id = $10"#,
                 self.author_id,
                 &self.summary,
                 self.description.as_ref(),
@@ -164,6 +172,7 @@ impl Issue {
                 self.parent_id,
                 self.blocked,
                 self.current_revision_id,
+                self.started_at,
                 self.completed_at,
                 self.id,
             )
@@ -183,7 +192,7 @@ impl Issue {
                 UNION ALL
                 SELECT parent.* FROM issues parent JOIN issue_hierarchy ON parent.id = issue_hierarchy.parent_id
             )
-            SELECT id as "id!", author_id as "author_id!", project_id, summary as "summary!", description, parent_id, blocked as "blocked!", current_revision_id, created_at as "created_at!", completed_at FROM issue_hierarchy"#,
+            SELECT id as "id!", author_id as "author_id!", project_id, summary as "summary!", description, parent_id, blocked as "blocked!", current_revision_id, created_at as "created_at!", started_at, completed_at FROM issue_hierarchy"#,
             issue_id,
         ).fetch_all(crate::pool()).await? {
             issues.insert(issue.id, issue);
@@ -403,6 +412,7 @@ impl IssueQueryBuilder {
                 blocked,
                 current_revision_id,
                 created_at, 
+                started_at,
                 completed_at,
                 count(*) OVER() as total_count
             FROM issues 
@@ -427,6 +437,7 @@ impl IssueQueryBuilder {
                         blocked: row.get("blocked"),
                         current_revision_id: row.get("current_revision_id"),
                         created_at: row.get("created_at"),
+                        started_at: row.get("started_at"),
                         completed_at: row.get("completed_at"),
                     },
                 )

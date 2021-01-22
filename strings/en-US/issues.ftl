@@ -25,6 +25,7 @@ issue-change-property = Property
 issue-change-old-value = Previous
 issue-change-new-value = Updated
 
+issue-started = Started
 issue-completed = Completed
 issue-new = Ready
 issue-blocked = Blocked
@@ -50,6 +51,8 @@ link-comment = Comment
 
 issue-update-completed = marked this issue as completed
 issue-update-reopened = reopened this issue
+issue-update-started = started work on this issue
+issue-update-stopped = cleared the started status
 issue-update-generic = changed {$property} from {$old} to {$new}
 issue-update-changed-project = moved projects from {$old} to {$new}
 issue-update-changed-description = updated the description

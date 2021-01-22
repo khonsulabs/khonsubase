@@ -135,6 +135,7 @@ struct EditIssueContext {
     summary: Option<String>,
     description: Option<String>,
     comment: Option<String>,
+    started: bool,
     completed: bool,
     project_id: Option<i64>,
 
@@ -169,6 +170,7 @@ pub async fn new_issue(
                 error_message: None,
                 comment: None,
                 completed: false,
+                started: false,
             },
         ))
     } else {
@@ -198,6 +200,7 @@ pub async fn edit_issue(
                     summary: Some(issue.summary),
                     description: issue.description,
                     comment: None,
+                    started: issue.started_at.is_some(),
                     completed: issue.completed_at.is_some(),
                     project_id: issue.project_id,
                     parent_id: issue.parent_id,
@@ -222,6 +225,7 @@ pub struct EditIssueForm {
     summary: String,
     description: Option<String>,
     comment: Option<String>,
+    started: bool,
     completed: bool,
     project_id: Option<i64>,
 }
@@ -305,6 +309,23 @@ async fn update_issue(
 
             issue.update_blocked_status(&mut tx).await?;
 
+            if issue_form.started != issue.started_at.is_some() {
+                let new_value = if issue_form.started {
+                    Some(Utc::now())
+                } else {
+                    None
+                };
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "started_at",
+                    issue.started_at,
+                    new_value,
+                    &mut tx,
+                )
+                .await?;
+                issue.started_at = new_value;
+            }
+
             if issue_form.completed != issue.completed_at.is_some() {
                 if issue.blocked {
                     return Err(IssueUpdateError::CantCloseBecauseBlocked);
@@ -378,6 +399,15 @@ async fn update_issue(
             issue_form.parent_id,
             issue_form.project_id,
         );
+
+        if issue_form.started {
+            issue.started_at = Some(Utc::now());
+        }
+
+        if issue_form.completed {
+            issue.completed_at = Some(Utc::now());
+        }
+
         issue.save(&mut tx).await?;
         issue
     };
@@ -434,6 +464,7 @@ pub async fn save_issue(
                             summary: Some(issue_form.summary.clone()),
                             description: issue_form.description.clone(),
                             comment: issue_form.comment.clone(),
+                            started: issue_form.started,
                             completed: issue_form.completed,
                             project_id: issue_form.project_id,
                             parent_id: issue_form.parent_id,

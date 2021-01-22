@@ -59,16 +59,21 @@
                 <div id="description_editor"></div>
             </div>
 
-            {% if issue_id %}
-            <div class="mb-3">
-                <label for="comment">{{ localize(key = "issue-revision-comment", language = request.language) }}</label>
-                <input id="comment" name="comment" type="hidden" value="{{ comment }}"/>
-                <div id="comment_editor"></div>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="started" name="started" {% if started %}checked{% endif %}>
+                <label class="form-check-label" for="started">{{ localize(key = "issue-started", language = request.language) }}</label>
             </div>
 
             <div class="form-check form-switch mb-3">
                 <input class="form-check-input" type="checkbox" id="completed" name="completed" {% if completed %}checked{% endif %}>
                 <label class="form-check-label" for="completed">{{ localize(key = "issue-completed", language = request.language) }}</label>
+            </div>
+
+            {% if issue_id %}
+            <div class="mb-3">
+                <label for="comment">{{ localize(key = "issue-revision-comment", language = request.language) }}</label>
+                <input id="comment" name="comment" type="hidden" value="{{ comment }}"/>
+                <div id="comment_editor"></div>
             </div>
             {% endif %}
 
