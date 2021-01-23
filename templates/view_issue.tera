@@ -146,18 +146,28 @@
                     {{ localize(key = "issue-update-changed-project", property = property, old = old_value, new = new_value, language = request.language) }}
                 {% elif property == "description" %}
                     {{ localize(key = "issue-update-changed-description", language = request.language) }}
-                    <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-description-{{entry.id}}" aria-expanded="false" aria-controls="collapseExample">
+                    <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-description-{{entry.id}}" aria-expanded="false" aria-controls="collapseExample">
                         {{ localize(key = "issue-update-see-changes", language = request.language) }}
                     </button>
-                    <div class="collapse" id="collapse-description-{{entry.id}}">
-                        <div class="container p-2 d-flex">
-                            <div class="flex-fill p-2 border-end">
-                                {{ change.old_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
-                            </div>
-                            <div class="flex-fill p-2">
-                                {{ change.new_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
-                            </div>
-                        </div>
+                    <div class="collapse p-2" id="collapse-description-{{entry.id}}">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>{{ localize(key = "issue-change-old-value", language = request.language) }}</th>
+                                    <th>{{ localize(key = "issue-change-new-value", language = request.language) }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border-end">
+                                        {{ change.old_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
+                                    </td>
+                                    <td>
+                                        {{ change.new_value | default(value = localize(key = "empty-value", language = request.language)) | render_markdown }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 {% else %}
                     {% set old_value = change.old_value | default(value = localize(key = "empty-value", language = request.language)) | as_str %}
