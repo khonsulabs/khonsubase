@@ -1,4 +1,4 @@
-use crate::sqlx;
+use crate::sqlx::{self, Done};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -41,5 +41,16 @@ impl Session {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn cleanup<'e, E: sqlx::Executor<'e, Database = sqlx::Postgres>>(
+        executor: E,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!(
+            "DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at < NOW()"
+        )
+        .execute(executor)
+        .await?;
+        Ok(result.rows_affected())
     }
 }

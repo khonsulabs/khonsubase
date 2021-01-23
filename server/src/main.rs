@@ -7,6 +7,7 @@ mod configuration;
 mod setup;
 mod webserver;
 
+mod jobs;
 #[cfg(test)]
 #[allow(dead_code)]
 mod test_helpers;
@@ -22,6 +23,8 @@ async fn main() -> Result<(), anyhow::Error> {
         .expect("error executing database migrations");
 
     setup::run().await.expect("error executing setup");
+
+    tokio::spawn(jobs::run());
 
     webserver::main().await?;
 
