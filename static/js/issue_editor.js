@@ -81,7 +81,16 @@ var tagWhitelist = {
     'IMG': true,
     'P': true,
     'SPAN': true,
-    'STRONG': true
+    'STRONG': true,
+    'UL': true,
+    'OL': true,
+    'LI': true,
+    'TABLE': true,
+    'TR': true,
+    'THEAD': true,
+    'TBODY': true,
+    'TD': true,
+    'TH': true,
 };
 
 var attributeWhitelist = {

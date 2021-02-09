@@ -83,10 +83,10 @@
 {% endblock content %}
 {% block extrahead %}
     <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.min.css" rel="stylesheet"/>
-    <link href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" rel="stylesheet"/>
+    <link href="https://uicdn.toast.com/editor/2.2.0/toastui-editor.min.css" rel="stylesheet"/>
 {% endblock extrahead %}
 {% block afterbody %}
-    <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+    <script src="https://uicdn.toast.com/editor/2.2.0/toastui-editor-all.min.js"></script>
     <script src="/static/js/issue_editor.js"></script>
     <script type="text/javascript">
         var descriptionEditor;
@@ -118,8 +118,8 @@
                         document.querySelector('#comment').value = commentEditor.getMarkdown();
                     }
                 },
-                useDefaultHTMLSanitizer: false,
-                customHTMLSanitizer: html_sanitizer({{ issue_prefix() | json_encode | safe }}),
+                // useDefaultHTMLSanitizer: false,
+                // customHTMLSanitizer: html_sanitizer({{ issue_prefix() | json_encode | safe }}),
             });
             {% endif %}
         });
