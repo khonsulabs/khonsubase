@@ -236,13 +236,18 @@ struct MarkdownFilter;
 
 impl tera::Filter for MarkdownFilter {
     fn filter(&self, markdown_source: &Value, _: &HashMap<String, Value>) -> tera::Result<Value> {
-        let markdown = articles::preformat_markdown(markdown_source.as_str().ok_or_else(|| {
-            tera::Error::msg("Value passed to markdown filter needs to be a string")
-        })?);
-        Ok(Value::String(comrak::markdown_to_html(
-            &markdown,
-            &ComrakOptions::default(),
-        )))
+        if markdown_source.is_null() {
+            Ok(Value::Null)
+        } else {
+            let markdown =
+                articles::preformat_markdown(markdown_source.as_str().ok_or_else(|| {
+                    tera::Error::msg("Value passed to markdown filter needs to be a string")
+                })?);
+            Ok(Value::String(comrak::markdown_to_html(
+                &markdown,
+                &ComrakOptions::default(),
+            )))
+        }
     }
 
     fn is_safe(&self) -> bool {
