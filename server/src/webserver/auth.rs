@@ -11,13 +11,14 @@ use uuid::Uuid;
 
 use database::{
     schema::accounts::{Account, Session},
-    sqlx::{self, types::chrono::Utc},
+    sqlx,
 };
 
 use crate::{
     configuration::{ConfigurationManager, SessionMaximumDays},
     webserver::Failure,
 };
+use chrono::{Duration, Utc};
 
 use super::{localization::UserLanguage, FullPathAndQuery, RequestData};
 
@@ -72,7 +73,7 @@ async fn verify_account(
                 .get::<SessionMaximumDays>()
                 .unwrap();
             let cookie_duration = if user.rememberme {
-                Some(time_01::Duration::days(session_maximum_days))
+                Some(Duration::days(session_maximum_days))
             } else {
                 None
             };
