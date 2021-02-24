@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 
-use crate::schema::{accounts::User, issues::Tag};
+use crate::schema::accounts::User;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueView {

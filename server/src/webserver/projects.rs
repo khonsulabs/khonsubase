@@ -2,7 +2,9 @@ use rocket::{http::Status, request::Form};
 use rocket_contrib::templates::Template;
 use serde::{Deserialize, Serialize};
 
-use database::schema::issues::{IssueQueryBuilder, IssueQueryResults, Project, ProjectError};
+use database::schema::issues::{
+    IssueQueryBuilder, IssueQueryResults, Project, ProjectError, Taxonomy,
+};
 
 use crate::webserver::{
     auth::SessionId, localization::UserLanguage, Failure, FullPathAndQuery, RequestData, ResultExt,
@@ -15,6 +17,7 @@ struct ViewProjectContext {
     project: Project,
     editable: bool,
     response: IssueQueryResults,
+    taxonomy: Taxonomy,
 }
 
 #[get("/project/<project_id>")]
@@ -55,6 +58,7 @@ async fn render_project(
         .query(database::pool())
         .await
         .map_to_failure()?;
+    let taxonomy = Taxonomy::load(database::pool()).await.map_to_failure()?;
 
     let editable = request
         .session
@@ -69,6 +73,7 @@ async fn render_project(
             project,
             editable,
             response,
+            taxonomy,
         },
     ))
 }
