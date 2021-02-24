@@ -1,4 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use rocket::{http::Status, request::Form};
 use rocket_contrib::templates::{tera, Template};
@@ -7,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use database::{
     schema::issues::{
         ContextualizedRelationship, Issue, IssueQueryBuilder, IssueQueryResults, IssueRelationship,
-        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueView, Project, Taxonomy,
+        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueView, Project, Relationship,
+        Tag, Taxonomy,
     },
     sqlx,
     sqlx::types::chrono::Utc,
@@ -21,13 +26,12 @@ use crate::{
     },
     Optionable,
 };
-use database::schema::issues::{Relationship, Tag};
-use std::{borrow::Cow, collections::HashSet};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
     request: RequestData,
     response: IssueQueryResults,
+    taxonomy: Taxonomy,
 }
 
 pub trait AuthoredBy {
@@ -63,10 +67,15 @@ pub async fn list_issues(
         .query(database::pool())
         .await
         .map_sql_to_http()?;
+    let taxonomy = Taxonomy::load(database::pool()).await.map_sql_to_http()?;
 
     Ok(Template::render(
         "list_issues",
-        ListIssuesContext { request, response },
+        ListIssuesContext {
+            request,
+            response,
+            taxonomy,
+        },
     ))
 }
 
@@ -85,10 +94,12 @@ struct ViewIssueContext {
     response: IssueQueryResults,
     editable: bool,
     projects: HashMap<i64, Project>,
+    tags: Vec<i32>,
+    taxonomy: Taxonomy,
 }
 
 async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Template> {
-    let (issue, parents, relationships, entries, response, projects) = futures::try_join!(
+    let (issue, parents, relationships, entries, response, projects, tags, taxonomy) = futures::try_join!(
         IssueView::load(issue_id),
         Issue::all_parents(issue_id),
         IssueRelationship::list_for(issue_id, database::pool()),
@@ -96,7 +107,9 @@ async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Templ
         IssueQueryBuilder::new()
             .owned_by(Some(issue_id))
             .query(database::pool()),
-        Project::list_as_map()
+        Project::list_as_map(),
+        Tag::list_for_issue(issue_id),
+        Taxonomy::load(database::pool())
     )?;
     let timeline = IssueTimeline { entries };
     let editable = can_edit_issue(&request, &issue);
@@ -111,6 +124,8 @@ async fn render_issue(request: RequestData, issue_id: i64) -> sqlx::Result<Templ
             response,
             editable,
             projects,
+            taxonomy,
+            tags: tags.into_iter().map(|t| t.id).collect(),
         },
     ))
 }

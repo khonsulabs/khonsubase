@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use migrations::sqlx::{self, postgres::PgRow, FromRow, Row, Transaction};
 
-use crate::schema::accounts::User;
+use crate::schema::{accounts::User, issues::Tag};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueView {
@@ -21,6 +21,7 @@ pub struct IssueView {
     pub created_at: DateTime<Utc>,
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub tag_ids: Vec<i32>,
 }
 
 impl IssueView {
@@ -40,7 +41,8 @@ impl IssueView {
                 current_revision_id, 
                 issues.created_at, 
                 started_at,
-                completed_at 
+                completed_at,
+                array(SELECT issue_tags.tag_id FROM issue_tags WHERE issue_id = issues.id) as tag_ids 
                FROM issues
                INNER JOIN accounts ON issues.author_id = accounts.id 
                LEFT OUTER JOIN projects ON projects.id = project_id
@@ -67,6 +69,7 @@ impl IssueView {
             created_at: row.created_at,
             started_at: row.started_at,
             completed_at: row.completed_at,
+            tag_ids: row.tag_ids.unwrap_or_default(),
         })
     }
 }
@@ -369,10 +372,26 @@ impl Default for IssuePagination {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IssueQueryResults {
-    pub issues: Vec<Issue>,
+    pub issues: Vec<IssueResult>,
     pub total_count: usize,
     pub start_at: usize,
     pub page_size: usize,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct IssueResult {
+    pub id: i64,
+    pub author_id: i64,
+    pub summary: String,
+    pub description: Option<String>,
+    pub project_id: Option<i64>,
+    pub parent_id: Option<i64>,
+    pub current_revision_id: Option<i64>,
+    pub blocked: bool,
+    pub created_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub tag_ids: Vec<i32>,
 }
 
 impl IssueQueryBuilder {
@@ -431,7 +450,7 @@ impl IssueQueryBuilder {
         let order_by = self.ordering.to_sql();
         let query = format!(
             r#"SELECT 
-                id, 
+                issues.id, 
                 author_id, 
                 summary, 
                 description, 
@@ -439,9 +458,10 @@ impl IssueQueryBuilder {
                 parent_id, 
                 blocked,
                 current_revision_id,
-                created_at, 
+                issues.created_at, 
                 started_at,
                 completed_at,
+                array(SELECT issue_tags.tag_id FROM issue_tags WHERE issue_id = issues.id) as tag_ids,
                 count(*) OVER() as total_count
             FROM issues 
             WHERE {}
@@ -451,11 +471,11 @@ impl IssueQueryBuilder {
             where_clauses, order_by, self.pagination.page_size, self.pagination.start_at
         );
 
-        let rows: Vec<(i64, Issue)> = sqlx::query(&query)
+        let rows: Vec<(i64, IssueResult)> = sqlx::query(&query)
             .map(|row: PgRow| {
                 (
                     row.get("total_count"),
-                    Issue {
+                    IssueResult {
                         id: row.get("id"),
                         author_id: row.get("author_id"),
                         summary: row.get("summary"),
@@ -467,6 +487,7 @@ impl IssueQueryBuilder {
                         created_at: row.get("created_at"),
                         started_at: row.get("started_at"),
                         completed_at: row.get("completed_at"),
+                        tag_ids: row.get("tag_ids"),
                     },
                 )
             })

@@ -8,7 +8,7 @@
 
 {% macro username(user) %}{% if user.display_name %}{{ user.display_name }} (@{{ user.username }}){% else %}@{{ user.username }}{% endif %}{% endmacro username %}
 
-{% macro issue_summary(summary, completed_at, started_at, blocked) %}
+{% macro issue_summary(summary, completed_at, started_at, blocked, tags, taxonomy) %}
 {% if completed_at %}
 <span class="badge bg-secondary">{{ localize(key = "issue-completed", language = request.language) }}</span>
 {% elif blocked %}
@@ -19,6 +19,14 @@
 <span class="badge bg-success">{{ localize(key = "issue-new", language = request.language) }}</span>
 {% endif %}
 {{ summary }}
+{% for tag in tags %}
+    {% set tag = taxonomy.tags[tag] %}
+    {% if tag.color %}
+        <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+    {% else %}
+        <span class="badge bg-secondary">{{ tag.name }}</span>
+    {% endif %}
+{% endfor %}
 {% endmacro issue_summary %}
 
 
