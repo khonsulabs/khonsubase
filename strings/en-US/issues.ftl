@@ -16,6 +16,7 @@ issue-project-none = No Project
 issue-parent = Parent Issue
 issue-related = Related Issues
 issue-relationship = Relationship
+issue-tags = Tags
 edit-issue = Edit #{$issue_id}
 save-issue = Save Issue
 view-issue = Issue #{$issue_id}

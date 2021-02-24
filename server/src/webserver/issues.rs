@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use database::{
     schema::issues::{
         ContextualizedRelationship, Issue, IssueQueryBuilder, IssueQueryResults, IssueRelationship,
-        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueView, Project,
+        IssueRevision, IssueRevisionChange, IssueRevisionView, IssueView, Project, Taxonomy,
     },
     sqlx,
     sqlx::types::chrono::Utc,
@@ -21,7 +21,8 @@ use crate::{
     },
     Optionable,
 };
-use database::schema::issues::Relationship;
+use database::schema::issues::{Relationship, Tag};
+use std::{borrow::Cow, collections::HashSet};
 
 #[derive(Serialize, Deserialize)]
 struct ListIssuesContext {
@@ -138,8 +139,10 @@ struct EditIssueContext {
     started: bool,
     completed: bool,
     project_id: Option<i64>,
+    ungrouped_tags: Vec<String>,
 
     projects: Vec<Project>,
+    taxonomy: Taxonomy,
 }
 
 #[get("/issues/new?<summary>&<description>&<project_id>&<parent_id>")]
@@ -154,6 +157,7 @@ pub async fn new_issue(
 ) -> Result<Template, Failure> {
     let request = RequestData::new(language, path, session).await;
     let projects = Project::list().await?;
+    let taxonomy = Taxonomy::load(database::pool()).await?;
     if request.logged_in() {
         Ok(Template::render(
             "edit_issue",
@@ -164,6 +168,7 @@ pub async fn new_issue(
                 project_id,
                 parent_id,
                 projects,
+                taxonomy,
 
                 issue_id: None,
                 current_revision_id: None,
@@ -171,6 +176,7 @@ pub async fn new_issue(
                 comment: None,
                 completed: false,
                 started: false,
+                ungrouped_tags: Default::default(),
             },
         ))
     } else {
@@ -190,6 +196,15 @@ pub async fn edit_issue(
         let issue = Issue::load(issue_id).await.map_to_failure()?;
         if can_edit_issue(&request, &issue) {
             let projects = Project::list().await?;
+            let taxonomy = Taxonomy::load(database::pool()).await?;
+            let mut unassigned_tags = Vec::default();
+
+            for tag in Tag::list_for_issue(issue.id).await? {
+                if tag.tag_group_id.is_none() {
+                    unassigned_tags.push(tag.name);
+                }
+            }
+
             Ok(Template::render(
                 "edit_issue",
                 EditIssueContext {
@@ -204,7 +219,9 @@ pub async fn edit_issue(
                     completed: issue.completed_at.is_some(),
                     project_id: issue.project_id,
                     parent_id: issue.parent_id,
+                    ungrouped_tags: unassigned_tags,
                     projects,
+                    taxonomy,
                 },
             ))
         } else {
@@ -228,6 +245,7 @@ pub struct EditIssueForm {
     started: bool,
     completed: bool,
     project_id: Option<i64>,
+    tags: String,
 }
 
 enum IssueUpdateError {
@@ -248,6 +266,7 @@ impl From<sqlx::Error> for IssueUpdateError {
 async fn update_issue(
     issue_form: &Form<EditIssueForm>,
     author_id: i64,
+    taxonomy: &Taxonomy,
 ) -> Result<Issue, IssueUpdateError> {
     let mut tx = database::pool().begin().await?;
     let issue = if let Some(issue_id) = issue_form.issue_id {
@@ -382,6 +401,71 @@ async fn update_issue(
                 issue.parent_id = issue_form.parent_id;
             }
 
+            let mut existing_tags = Tag::list_for_issue(issue.id).await?;
+            let mut tags_to_remove = existing_tags.iter().map(|t| t.id).collect::<HashSet<_>>();
+            let mut tags_to_insert = HashSet::new();
+            let mut all_tags = Vec::new();
+
+            for input_tag in parse_tags(&issue_form.tags) {
+                if let Some(tag_id) = taxonomy.lower_map.get(&input_tag.to_lowercase()) {
+                    all_tags.push(taxonomy.tags[tag_id].name.clone());
+
+                    if existing_tags.iter().any(|t| t.id == *tag_id) {
+                        tags_to_remove.remove(tag_id);
+                    } else {
+                        tags_to_insert.insert(*tag_id);
+                    }
+                } else {
+                    let mut tag = Tag::new(input_tag.to_string());
+                    tag.save(&mut tx)
+                        .await
+                        .map_err(|_| IssueUpdateError::InternalError)?;
+                    tags_to_insert.insert(tag.id);
+                    all_tags.push(tag.name);
+                }
+            }
+
+            if !tags_to_remove.is_empty() || !tags_to_insert.is_empty() {
+                existing_tags.sort_by_key(|t| t.name.to_lowercase());
+                all_tags.sort();
+
+                let old_value = if existing_tags.is_empty() {
+                    None
+                } else {
+                    Some(
+                        existing_tags
+                            .into_iter()
+                            .map(|t| t.name)
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                };
+
+                let new_value = if all_tags.is_empty() {
+                    None
+                } else {
+                    Some(all_tags.join(", "))
+                };
+
+                IssueRevisionChange::create(
+                    issue_revision.id,
+                    "tags",
+                    old_value,
+                    new_value,
+                    &mut tx,
+                )
+                .await?;
+
+                // Execute the actual changes
+                for tag in tags_to_remove {
+                    issue.remove_tag(tag, &mut tx).await?;
+                }
+
+                for tag in tags_to_insert {
+                    issue.add_tag(tag, &mut tx).await?;
+                }
+            }
+
             issue.current_revision_id = Some(issue_revision.id);
         }
         issue.save(&mut tx).await?;
@@ -417,6 +501,22 @@ async fn update_issue(
     Ok(issue)
 }
 
+fn parse_tags(source: &str) -> Vec<Cow<'_, str>> {
+    #[derive(Deserialize)]
+    struct TagifyTag<'a> {
+        value: Cow<'a, str>,
+    }
+    let mut tags: Vec<_> = if let Ok(tags) = serde_json::from_str::<Vec<TagifyTag>>(source) {
+        tags.into_iter().map(|s| s.value).collect()
+    } else {
+        source.split(',').map(|s| Cow::from(s.trim())).collect()
+    };
+
+    tags.retain(|s| !s.is_empty());
+
+    tags
+}
+
 #[post("/issues/save", data = "<issue_form>")]
 pub async fn save_issue(
     issue_form: Form<EditIssueForm>,
@@ -429,7 +529,8 @@ pub async fn save_issue(
         if issue_form.issue_id.is_none()
             || can_edit_issue(&request, &Issue::load(issue_form.issue_id.unwrap()).await?)
         {
-            let result = update_issue(&issue_form, session.account.id).await;
+            let taxonomy = Taxonomy::load(database::pool()).await?;
+            let result = update_issue(&issue_form, session.account.id, &taxonomy).await;
 
             match result {
                 Ok(issue) => Err(Failure::redirect(format!("/issue/{}", issue.id))),
@@ -468,7 +569,14 @@ pub async fn save_issue(
                             completed: issue_form.completed,
                             project_id: issue_form.project_id,
                             parent_id: issue_form.parent_id,
+                            ungrouped_tags: issue_form
+                                .tags
+                                .split(',')
+                                .map(|s| s.to_string())
+                                .collect(),
+
                             projects,
+                            taxonomy,
                         },
                     ))
                 }

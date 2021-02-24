@@ -281,6 +281,34 @@ impl Issue {
 
         Ok(tx)
     }
+
+    pub async fn remove_tag<'e, E>(&self, tag_id: i32, executor: E) -> sqlx::Result<()>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query!(
+            "DELETE FROM issue_tags WHERE issue_id = $1 AND tag_id = $2",
+            self.id,
+            tag_id
+        )
+        .execute(executor)
+        .await
+        .map(|_| ())
+    }
+
+    pub async fn add_tag<'e, E>(&self, tag_id: i32, executor: E) -> sqlx::Result<()>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query!(
+            "INSERT INTO issue_tags (issue_id, tag_id) VALUES ($1, $2)",
+            self.id,
+            tag_id
+        )
+        .execute(executor)
+        .await
+        .map(|_| ())
+    }
 }
 
 #[derive(Eq, PartialEq, Debug)]
